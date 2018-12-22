@@ -1,0 +1,2 @@
+all the java source files under this directory are generated from the asn specs (which were copied from the CCSDS spec) using the jasn1-compiler from
+https://www.openmuc.org/asn1/

@@ -1,0 +1,70 @@
+-- copied from
+-- CCSDS RECOMMENDED STANDARD FOR SLE ROCF SERVICE
+-- CCSDS 911.5-B-3 Page A-21 August 2016
+-- https://public.ccsds.org/Pubs/911x5b3.pdf
+-- A2.6 SLE TRANSFER SERVICE—ROCF INCOMING PDUS
+CCSDS-SLE-TRANSFER-SERVICE-ROCF-INCOMING-PDUS
+{ iso identified-organization(3)
+ standards-producing-organization(112) ccsds(4)
+ space-link-extension(3) sle-transfer-services(1)
+ modules (1) return-operational-control-field-service(14)
+ version-four(4) asn1-rocf-incoming-pdu(2)
+}
+DEFINITIONS
+IMPLICIT TAGS
+::= BEGIN
+IMPORTS ConditionalTime
+, Credentials
+, InvokeId
+ FROM CCSDS-SLE-TRANSFER-SERVICE-COMMON-TYPES
+ SleScheduleStatusReportInvocation
+, SleStopInvocation
+ FROM CCSDS-SLE-TRANSFER-SERVICE-COMMON-PDUS
+ ControlWordType
+, GvcId
+, RocfParameterName
+, TcVcid
+, UpdateMode
+ FROM CCSDS-SLE-TRANSFER-SERVICE-ROCF-STRUCTURES
+ SleBindInvocation
+, SleBindReturn
+, SlePeerAbort
+, SleUnbindInvocation
+, SleUnbindReturn
+ FROM CCSDS-SLE-TRANSFER-SERVICE-BIND-TYPES
+;
+-- =============================================================
+-- The first part of the module definition contains the ROCF type
+-- that contains all the possible PDUs the provider may receive.
+-- =============================================================
+RocfUsertoProviderPdu ::= CHOICE
+{ rocfBindInvocation [100] SleBindInvocation
+, rocfBindReturn [101] SleBindReturn
+, rocfUnbindInvocation [102] SleUnbindInvocation
+, rocfUnbindReturn [103] SleUnbindReturn
+, rocfStartInvocation [0] RocfStartInvocation
+, rocfStopInvocation [2] SleStopInvocation
+, rocfScheduleStatusReportInvocation [4]
+ SleScheduleStatusReportInvocation
+, rocfGetParameterInvocation [6] RocfGetParameterInvocation
+, rocfPeerAbortInvocation [104] SlePeerAbort
+}
+-- =============================================================
+-- The second part of the module definition contains the types
+-- used by the ROCF-PDUs declared in the first part.
+-- ============================================================= 
+RocfGetParameterInvocation ::= SEQUENCE
+{ invokerCredentials Credentials
+, invokeId InvokeId
+, rocfParameter RocfParameterName
+}
+RocfStartInvocation ::= SEQUENCE
+{ invokerCredentials Credentials
+, invokeId InvokeId
+, startTime ConditionalTime
+, stopTime ConditionalTime
+, requestedGvcId GvcId
+, controlWordType ControlWordType
+, updateMode UpdateMode
+}
+END
