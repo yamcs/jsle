@@ -171,7 +171,6 @@ public class SleBindInvocation implements BerType, Serializable {
 		else {
 			throw new IOException("Tag does not match the mandatory sequence element tag.");
 		}
-		
 		if (berTag.equals(ApplicationIdentifier.tag)) {
 			serviceType = new ApplicationIdentifier();
 			subCodeLength += serviceType.decode(is, false);

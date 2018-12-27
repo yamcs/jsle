@@ -41,8 +41,7 @@ CltuUserToProviderPdu ::= CHOICE
 , cltuUnbindInvocation [102] SleUnbindInvocation
 , cltuStartInvocation [0] CltuStartInvocation
 , cltuStopInvocation [2] SleStopInvocation
-, cltuScheduleStatusReportInvocation [4]
- SleScheduleStatusReportInvocation
+, cltuScheduleStatusReportInvocation [4] SleScheduleStatusReportInvocation
 , cltuGetParameterInvocation [6] CltuGetParameterInvocation
 , cltuThrowEventInvocation [8] CltuThrowEventInvocation
 , cltuTransferDataInvocation [10] CltuTransferDataInvocation
