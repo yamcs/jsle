@@ -17,9 +17,7 @@ public class CcsdsTime {
      */
     public static byte[] getDaySegmented(long javaTime) {
         byte[] r = new byte[8];
-        System.out.println("javaTime: "+javaTime);
         int numDays = (int) (javaTime / MS_IN_DAY) + NUM_DAYS_1958_1970;
-        System.out.println("javaTime: "+javaTime+" numDays: "+numDays);
         int msOfDay = (int) (javaTime % MS_IN_DAY);
         //TODO fix microseconds with Java 9.
         int microsec = 0;

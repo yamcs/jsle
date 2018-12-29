@@ -1,6 +1,5 @@
 package org.yamcs.sle;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.security.MessageDigest;
@@ -76,7 +75,6 @@ public class Isp1Authentication {
         Credentials c = new Credentials();
         ISP1Credentials cr = generateIsp1Credentials();
         ReverseByteArrayOutputStream rbaos = new ReverseByteArrayOutputStream(bufferSize, true);
-        System.out.println("credentials: " + cr);
         try {
             cr.encode(rbaos);
         } catch (IOException e) {

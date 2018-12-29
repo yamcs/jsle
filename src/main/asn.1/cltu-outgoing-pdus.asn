@@ -53,8 +53,7 @@ CltuProviderToUserPdu ::= CHOICE
 , cltuUnbindReturn [103] SleUnbindReturn
 , cltuStartReturn [1] CltuStartReturn
 , cltuStopReturn [3] SleAcknowledgement
-, cltuScheduleStatusReportReturn [5]
- SleScheduleStatusReportReturn
+, cltuScheduleStatusReportReturn [5] SleScheduleStatusReportReturn
 , cltuGetParameterReturn [7] CltuGetParameterReturn
 , cltuThrowEventReturn [9] CltuThrowEventReturn
 , cltuTransferDataReturn [11] CltuTransferDataReturn

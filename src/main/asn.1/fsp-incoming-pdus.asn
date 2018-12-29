@@ -48,8 +48,7 @@ FspUserToProviderPdu ::= CHOICE
 , fspStartInvocation [0] FspStartInvocation
 , fspStopInvocation [2] SleStopInvocation
 , fspTransferDataInvocation [10] FspTransferDataInvocation
-, fspScheduleStatusReportInvocation [4]
- SleScheduleStatusReportInvocation
+, fspScheduleStatusReportInvocation [4] SleScheduleStatusReportInvocation
 , fspGetParameterInvocation [6] FspGetParameterInvocation
 , fspThrowEventInvocation [8] FspThrowEventInvocation
 , fspInvokeDirectiveInvocation [14] FspInvokeDirectiveInvocation

@@ -1,225 +1,222 @@
 package org.yamcs.sle;
 
-import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.io.IOException;
+import java.io.InputStream;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
-import org.openmuc.jasn1.ber.types.BerObjectIdentifier;
-import org.openmuc.jasn1.ber.types.string.BerVisibleString;
+import org.openmuc.jasn1.ber.BerTag;
+import org.openmuc.jasn1.ber.types.BerOctetString;
 
-import ccsds.sle.transfer.service.bind.types.ApplicationIdentifier;
-import ccsds.sle.transfer.service.bind.types.AuthorityIdentifier;
-import ccsds.sle.transfer.service.bind.types.PortId;
-import ccsds.sle.transfer.service.bind.types.SleBindInvocation;
-import ccsds.sle.transfer.service.bind.types.SleBindReturn;
-import ccsds.sle.transfer.service.bind.types.SleBindReturn.Result;
-import ccsds.sle.transfer.service.bind.types.SlePeerAbort;
-import ccsds.sle.transfer.service.bind.types.SleUnbindReturn;
-import ccsds.sle.transfer.service.bind.types.VersionNumber;
+import ccsds.sle.transfer.service.cltu.incoming.pdus.CltuGetParameterInvocation;
 import ccsds.sle.transfer.service.cltu.incoming.pdus.CltuStartInvocation;
+import ccsds.sle.transfer.service.cltu.incoming.pdus.CltuThrowEventInvocation;
+import ccsds.sle.transfer.service.cltu.incoming.pdus.CltuTransferDataInvocation;
 import ccsds.sle.transfer.service.cltu.incoming.pdus.CltuUserToProviderPdu;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuAsyncNotifyInvocation;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuGetParameterReturn;
-import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuProviderToUserPdu;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuStartReturn;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuStatusReportInvocation;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuThrowEventReturn;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuTransferDataReturn;
+import ccsds.sle.transfer.service.cltu.structures.CltuData;
+import ccsds.sle.transfer.service.cltu.structures.CltuGetParameter;
 import ccsds.sle.transfer.service.cltu.structures.CltuIdentification;
+import ccsds.sle.transfer.service.cltu.structures.CltuParameterName;
+import ccsds.sle.transfer.service.cltu.structures.EventInvocationId;
 import ccsds.sle.transfer.service.common.pdus.SleAcknowledgement;
-import ccsds.sle.transfer.service.common.pdus.SleScheduleStatusReportReturn;
+import ccsds.sle.transfer.service.common.types.ConditionalTime;
+import ccsds.sle.transfer.service.common.types.Duration;
+import ccsds.sle.transfer.service.common.types.IntPosShort;
 import ccsds.sle.transfer.service.common.types.InvokeId;
-import ccsds.sle.transfer.service.service.instance.id.OidValues;
-import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceAttribute;
-import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceIdentifier;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
-public class CltuServiceUserHandler extends AbstractServiceHandler {
-    static public enum State {
-        UNBOUND, BINDING, READY, STARTING, ACTIVE
-    };
+import static org.yamcs.sle.Constants.*;
 
-    final Isp1Authentication auth;
-    final String initiatorId;
-    final String responderPortId;
+public class CltuServiceUserHandler extends AbstractServiceUserHandler {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(Isp1Handler.class);
+    int cltuId = 1;
+    int eventInvocationId = 1;
     
-    State state = State.UNBOUND;
-    private CompletableFuture<Void> bindingCf;
-    private CompletableFuture<Void> startingCf;
+    private volatile long cltuBufferAvailable;
     
     public CltuServiceUserHandler(Isp1Authentication auth, String responderPortId, String initiatorId) {
-        this.initiatorId = initiatorId;
-        this.responderPortId = responderPortId;
-        this.auth = auth;
+        super(auth, responderPortId, initiatorId);
     }
 
-    
-    public CompletableFuture<Void> bind() {
-        CompletableFuture<Void> cf = new CompletableFuture<>();
-        channelHandlerContext.executor().execute(() -> sendBind(cf));
-        return cf;
-    }
-   
-    
-    public CompletableFuture<Void> start() {
-        CompletableFuture<Void> cf = new CompletableFuture<>();
-        channelHandlerContext.executor().execute(() -> sendStart(cf));
-        return cf;
-    }
-   
-    
-    @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        System.out.println("received message "+msg);
-        if(logger.isTraceEnabled()) {
-            logger.trace( "received message: {}", msg);
-        }
-        CltuProviderToUserPdu pdu = (CltuProviderToUserPdu) msg;
-        if(pdu.getCltuTransferDataReturn()!=null) {
-            processTransferDataReturn(pdu.getCltuTransferDataReturn());
-        } else if(pdu.getCltuBindReturn()!=null) {
-            processBindReturn(pdu.getCltuBindReturn());
-        } else if(pdu.getCltuAsyncNotifyInvocation()!=null) {
-            processAsyncNotifyInvocation(pdu.getCltuAsyncNotifyInvocation());
-        } else if(pdu.getCltuGetParameterReturn()!=null) {
-            processGetParameterReturn(pdu.getCltuGetParameterReturn());
-        } else if(pdu.getCltuPeerAbortInvocation()!=null) {
-            processPeerAbortInvocation(pdu.getCltuPeerAbortInvocation());
-        } else if(pdu.getCltuScheduleStatusReportReturn()!=null) {
-            processCltuScheduleStatusReportReturn(pdu.getCltuScheduleStatusReportReturn());
-        } else if(pdu.getCltuStartReturn()!=null) {
-            processStartReturn(pdu.getCltuStartReturn());
-        }  else if(pdu.getCltuStatusReportInvocation()!=null) {
-            processStatusReportInvocation(pdu.getCltuStatusReportInvocation());
-        }  else if(pdu.getCltuStopReturn()!=null) {
-            processStopReturn(pdu.getCltuStopReturn());
-        } else if(pdu.getCltuThrowEventReturn()!=null) {
-            processThrowEventReturn(pdu.getCltuThrowEventReturn());
-        } else if(pdu.getCltuUnbindReturn()!=null) {
-            processCltuUnbindReturn(pdu.getCltuUnbindReturn());
+    protected void processData(BerTag berTag, InputStream is) throws IOException {
+        System.out.println("berTga: "+berTag);
+        if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 11)) {
+            CltuTransferDataReturn cltuTransferDataReturn = new CltuTransferDataReturn();
+            cltuTransferDataReturn.decode(is, false);
+            processTransferDataReturn(cltuTransferDataReturn);
+        } else if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 1)) {
+            CltuStartReturn cltuStartReturn = new CltuStartReturn();
+            cltuStartReturn.decode(is, false);
+            processStartReturn(cltuStartReturn);
+        } else if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 3)) {
+            SleAcknowledgement cltuStopReturn = new SleAcknowledgement();
+            cltuStopReturn.decode(is, false);
+            processStopReturn(cltuStopReturn);
+        }  else if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 7)) {
+            CltuGetParameterReturn cltuGetParameterReturn = new CltuGetParameterReturn();
+            cltuGetParameterReturn.decode(is, false);
+            processGetParameterReturn(cltuGetParameterReturn);
+        } else if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 9)) {
+            CltuThrowEventReturn cltuThrowEventReturn = new CltuThrowEventReturn();
+            cltuThrowEventReturn.decode(is, false);
+            processThrowEventReturn(cltuThrowEventReturn);
+        } else if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 12)) {
+            CltuAsyncNotifyInvocation cltuAsyncNotifyInvocation = new CltuAsyncNotifyInvocation();
+            cltuAsyncNotifyInvocation.decode(is, false);
+            processAsyncNotifyInvocation(cltuAsyncNotifyInvocation);
+        } else if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 13)) {
+            CltuStatusReportInvocation cltuStatusReportInvocation = new CltuStatusReportInvocation();
+            cltuStatusReportInvocation.decode(is, false);
+            processStatusReportInvocation(cltuStatusReportInvocation);
         } else {
-            logger.error("Unexpected state");
+            logger.warn("Unexpected state berTag: {} ", berTag);
             throw new IllegalStateException();
         }
-        
-       
     }
-
-   
-    private void processCltuUnbindReturn(SleUnbindReturn cltuUnbindReturn) {
-        // TODO Auto-generated method stub
-        
+    
+    public void transferCltu(byte[] cltu) {
+        transferCltu(cltu, COND_TIME_UNDEFINED, COND_TIME_UNDEFINED, 0, false);
     }
-
-    private void processThrowEventReturn(CltuThrowEventReturn cltuThrowEventReturn) {
-        // TODO Auto-generated method stub
-        
+    
+    public void transferCltu(byte[] cltu, ConditionalTime earliestTransmissionTime,
+            ConditionalTime latestTransmissionTime, long delayMicrosec, boolean produceReport) {
+        channelHandlerContext.executor().execute(() -> sendTransferData(cltu, earliestTransmissionTime, latestTransmissionTime, delayMicrosec, produceReport));
     }
-
-    private void processStopReturn(SleAcknowledgement cltuStopReturn) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    private void processStatusReportInvocation(CltuStatusReportInvocation cltuStatusReportInvocation) {
-        // TODO Auto-generated method stub
-        
-    }
-
-   
-    private void processCltuScheduleStatusReportReturn(SleScheduleStatusReportReturn cltuScheduleStatusReportReturn) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    private void processPeerAbortInvocation(SlePeerAbort cltuPeerAbortInvocation) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    private void processGetParameterReturn(CltuGetParameterReturn cltuGetParameterReturn) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    private void processAsyncNotifyInvocation(CltuAsyncNotifyInvocation cltuAsyncNotifyInvocation) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    private void sendBind(CompletableFuture<Void> cf) {
-        if(state!=State.UNBOUND) {
-            cf.completeExceptionally(new SleException("Cannot call bind while in state "+state));
-            return;
-        }
-        state = State.BINDING;
-        this.bindingCf = cf;
-        
+    
+    private void sendTransferData(byte[] cltu, ConditionalTime earliestTransmissionTime,
+            ConditionalTime latestTransmissionTime, long delayMicrosec, boolean produceReport) {
         CltuUserToProviderPdu cutp = new CltuUserToProviderPdu();
 
-        SleBindInvocation sbi = new SleBindInvocation();
-        sbi.setInitiatorIdentifier(new AuthorityIdentifier(initiatorId.getBytes(StandardCharsets.US_ASCII)));
-        sbi.setInvokerCredentials(auth.generateCredentials());
-
-        sbi.setServiceInstanceIdentifier(getServiceInstanceIdentifier());
-        sbi.setResponderPortIdentifier(new PortId(responderPortId.getBytes(StandardCharsets.US_ASCII)));
-        sbi.setVersionNumber(new VersionNumber(2));
-        sbi.setServiceType(new ApplicationIdentifier(Constants.APP_ID_FWD_CLTU));
-        cutp.setCltuBindInvocation(sbi);
+        CltuTransferDataInvocation ctdi = new CltuTransferDataInvocation();
+        ctdi.setInvokeId(getInvokeId());
+        
+        ctdi.setCltuIdentification(getCltuId());
+        ctdi.setEarliestTransmissionTime(earliestTransmissionTime);
+        ctdi.setLatestTransmissionTime(latestTransmissionTime);
+        ctdi.setDelayTime(new Duration(delayMicrosec));
+        ctdi.setSlduRadiationNotification(produceReport?SLDU_NOTIFICATION_TRUE:SLDU_NOTIFICATION_FALSE);
+        ctdi.setCltuData(new CltuData(cltu));
+        cutp.setCltuTransferDataInvocation(ctdi);
+        
+        ctdi.setInvokerCredentials(getNonBindCredentials());
         channelHandlerContext.writeAndFlush(cutp);
     }
-
-    private void processBindReturn(SleBindReturn cltuBindReturn) {
-        if(state != State.BINDING) {
-            peerAbort();
-            return;
-        }
-        Result r = cltuBindReturn.getResult();
-        if(r.getNegative()!=null) {
-            state = State.UNBOUND;
-            bindingCf.completeExceptionally(new SleException("bind failed: "+Constants.BIND_DIAGNOSTIC.get(r.getNegative().intValue())));
-        } else {
-            state = State.READY;
-            bindingCf.complete(null);
-        }
-    }
-
-    private void peerAbort() {
-        // TODO Auto-generated method stub
-        
+    
+    
+    private CltuIdentification getCltuId() {
+        return new CltuIdentification(cltuId++);
     }
 
     private void processTransferDataReturn(CltuTransferDataReturn cltuTransferDataReturn) {
-        // TODO Auto-generated method stub
-        
+        if(logger.isTraceEnabled()) {
+            logger.trace("Received CltuTransferDataReturn {}", cltuTransferDataReturn);
+        }
+        this.cltuBufferAvailable = cltuTransferDataReturn.getCltuBufferAvailable().longValue();
     }
 
+    public CompletableFuture<Void> throwEvent(int eventIdentifier, byte[] eventQualifier) {
+        CompletableFuture<Void> cf = new CompletableFuture<>();
+        channelHandlerContext.executor().execute(() -> sendThrowEvent(eventIdentifier, eventQualifier, cf));
+        return cf;
+    }
+    private void sendThrowEvent(int eventIdentifier, byte[] eventQualifier, CompletableFuture<Void> cf) {
+        CltuUserToProviderPdu cutp = new CltuUserToProviderPdu();
 
-    private void sendStart(CompletableFuture<Void> cf) {
-        if(state!=State.READY) {
-            cf.completeExceptionally(new IllegalStateException("Cannot call start while in state "+state));
+        CltuThrowEventInvocation ctei = new CltuThrowEventInvocation();
+        ctei.setInvokeId(getInvokeId(cf));
+        ctei.setInvokerCredentials(getNonBindCredentials());
+        ctei.setEventIdentifier(new IntPosShort(eventIdentifier));
+        ctei.setEventInvocationIdentification(new EventInvocationId(eventInvocationId++));
+        ctei.setEventQualifier(new BerOctetString(eventQualifier));
+        
+        channelHandlerContext.writeAndFlush(cutp);
+    }
+    
+    private void processThrowEventReturn(CltuThrowEventReturn cltuThrowEventReturn) {
+        CompletableFuture<Void> cf = getFuture(cltuThrowEventReturn.getInvokeId());
+        CltuThrowEventReturn.Result r = cltuThrowEventReturn.getResult();
+        if(r.getNegativeResult()!=null) {
+            cf.completeExceptionally(new SleException("error getting parameter", r.getNegativeResult()));
+        } else {
+            cf.complete(null);
+        }
+
+    }
+ 
+
+    public CompletableFuture<CltuGetParameter> getParameter(int parameterId) {
+        CompletableFuture<CltuGetParameter> cf = new CompletableFuture<>();
+        channelHandlerContext.executor().execute(() -> sendGetParameter(parameterId, cf));
+        return cf;
+    }
+   
+    private void sendGetParameter(int parameterId, CompletableFuture<CltuGetParameter> cf) {
+        CltuUserToProviderPdu cutp = new CltuUserToProviderPdu();
+
+        CltuGetParameterInvocation cgpi = new CltuGetParameterInvocation();
+        cgpi.setInvokeId(getInvokeId(cf));
+        cgpi.setInvokerCredentials(getNonBindCredentials());
+        cgpi.setCltuParameter(new CltuParameterName(parameterId));
+        cutp.setCltuGetParameterInvocation(cgpi);
+        channelHandlerContext.writeAndFlush(cutp);
+    }
+    
+   
+    private void processGetParameterReturn(CltuGetParameterReturn cltuGetParameterReturn) {
+        CompletableFuture<CltuGetParameter> cf = getFuture(cltuGetParameterReturn.getInvokeId());
+        CltuGetParameterReturn.Result r = cltuGetParameterReturn.getResult();
+        if(r.getNegativeResult()!=null) {
+            cf.completeExceptionally(new SleException("error getting parameter", r.getNegativeResult()));
+        } else {
+            cf.complete(r.getPositiveResult());
+        }
+    }
+
+    
+
+    private void processAsyncNotifyInvocation(CltuAsyncNotifyInvocation cltuAsyncNotifyInvocation) {
+        if(logger.isTraceEnabled()) {
+            logger.trace("Received CltuAsyncNotifyInvocation {}", cltuAsyncNotifyInvocation);
+        }
+        System.out.println("received: CltuAsyncNotifyInvocation"+cltuAsyncNotifyInvocation);
+     
+        // TODO Auto-generated method stub
+
+    }
+
+    protected void sendStart(CompletableFuture<Void> cf) {
+        if (state != State.READY) {
+            cf.completeExceptionally(new SleException("Cannot call start while in state " + state));
             return;
         }
         state = State.STARTING;
         this.startingCf = cf;
-        
+
         CltuUserToProviderPdu cutp = new CltuUserToProviderPdu();
 
         CltuStartInvocation csi = new CltuStartInvocation();
         csi.setFirstCltuIdentification(new CltuIdentification(1));
         csi.setInvokeId(new InvokeId(1));
-        csi.setInvokerCredentials(auth.generateCredentials());
-        
+        csi.setInvokerCredentials(getNonBindCredentials());
+
         cutp.setCltuStartInvocation(csi);
         channelHandlerContext.writeAndFlush(cutp);
     }
 
     private void processStartReturn(CltuStartReturn cltuStartReturn) {
+        if (state != State.STARTING) {
+            peerAbort();
+            return;
+        }
         ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuStartReturn.Result r = cltuStartReturn.getResult();
-        if(r.getNegativeResult()!=null) {
+        if (r.getNegativeResult() != null) {
             startingCf.completeExceptionally(new SleException("failed to start", r.getNegativeResult()));
             state = State.READY;
         } else {
@@ -227,32 +224,14 @@ public class CltuServiceUserHandler extends AbstractServiceHandler {
             state = State.ACTIVE;
         }
     }
-
-    private static ServiceInstanceIdentifier getServiceInstanceIdentifier() {
-        ServiceInstanceIdentifier sii = new ServiceInstanceIdentifier();
-        List<ServiceInstanceAttribute> l = sii.getServiceInstanceAttribute();
-        l.add(getServiceInstanceAttribute(OidValues.sagr, "SAGR"));
-        l.add(getServiceInstanceAttribute(OidValues.spack, "SPACK"));
-        l.add(getServiceInstanceAttribute(OidValues.fslFg, "FSL-FG"));
-        l.add(getServiceInstanceAttribute(OidValues.cltu, "cltu2"));
-        return sii;
+    private void processStatusReportInvocation(CltuStatusReportInvocation cltuStatusReportInvocation) {
+        if(logger.isTraceEnabled()) {
+            logger.trace("Received CltuStatusReport {}", cltuStatusReportInvocation);
+        }
+        System.out.println(Instant.now()+": received cltuStatusReport "+cltuStatusReportInvocation);
     }
 
-    private static ServiceInstanceAttribute getServiceInstanceAttribute(BerObjectIdentifier id, String value) {
-        ServiceInstanceAttribute sia = new ServiceInstanceAttribute();
-        ServiceInstanceAttribute.SEQUENCE sias = new ServiceInstanceAttribute.SEQUENCE();
-        sias.setIdentifier(id);
-        sias.setSiAttributeValue(new BerVisibleString(value));
-        sia.getSEQUENCE().add(sias);
-        return sia;
+    public long getCltuBufferAvailable() {
+        return cltuBufferAvailable;
     }
-
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        //TODO
-        cause.printStackTrace();
-        ctx.close();
-    }
-    
-    
 }
