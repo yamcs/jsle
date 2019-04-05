@@ -1,11 +1,9 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.yamcs</groupId>
 	<artifactId>jsle</artifactId>
 	<packaging>jar</packaging>
-	<version>0.5-SNAPSHOT</version>
+	<version>0.5</version>
 	<name>jsle</name>
 	<url>https://github.com/yamcs/jsle</url>
 	<description>Java implementation for the SLE (Space Link Extension) protocol.</description>
@@ -21,7 +19,7 @@
 		<connection>scm:git:git@github.com:yamcs/jsle.git</connection>
 		<developerConnection>scm:git:ssh@github.com:yamcs/jsle.git</developerConnection>
 		<url>https://github.com/yamcs/jsle</url>
-		<tag>HEAD</tag>
+		<tag>jsle-0.5</tag>
 	</scm>
 
 	<organization>
