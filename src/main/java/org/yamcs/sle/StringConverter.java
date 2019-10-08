@@ -3,7 +3,7 @@ package org.yamcs.sle;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 
-import org.openmuc.jasn1.ber.types.BerObjectIdentifier;
+import com.beanit.jasn1.ber.types.BerObjectIdentifier;
 
 import ccsds.sle.transfer.service.service.instance.id.OidValues;
 import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceAttribute;

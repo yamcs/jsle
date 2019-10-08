@@ -8,10 +8,10 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
-import org.openmuc.jasn1.ber.ReverseByteArrayOutputStream;
-import org.openmuc.jasn1.ber.types.BerInteger;
-import org.openmuc.jasn1.ber.types.BerOctetString;
-import org.openmuc.jasn1.ber.types.string.BerVisibleString;
+import com.beanit.jasn1.ber.ReverseByteArrayOutputStream;
+import com.beanit.jasn1.ber.types.BerInteger;
+import com.beanit.jasn1.ber.types.BerOctetString;
+import com.beanit.jasn1.ber.types.string.BerVisibleString;
 
 import ccsds.sle.transfer.service.common.types.Credentials;
 import ccsds.sle.transfer.service.isp1.credentials.HashInput;

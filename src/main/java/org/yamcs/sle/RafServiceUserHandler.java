@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
 
-import org.openmuc.jasn1.ber.BerTag;
+import com.beanit.jasn1.ber.BerTag;
 import org.yamcs.sle.Constants.ParameterName;
 
 import ccsds.sle.transfer.service.common.types.InvokeId;

@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.openmuc.jasn1.ber.BerTag;
+import com.beanit.jasn1.ber.BerTag;
 import org.yamcs.sle.Constants.ApplicationIdentifier;
 import org.yamcs.sle.Constants.ServiceAgreement;
 import org.yamcs.sle.Constants.ServicePackage;

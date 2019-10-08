@@ -78,7 +78,7 @@ public class FirstAttempt {
            
            
            for(int i =0; i<30; i++) {
-               csuh.transferCltu(new byte[100]);
+               csuh.transferCltu(new byte[100], i);
                //Thread.sleep(100);
            }
            

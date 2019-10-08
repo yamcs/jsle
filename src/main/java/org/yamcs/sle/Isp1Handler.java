@@ -2,8 +2,8 @@ package org.yamcs.sle;
 
 import java.util.concurrent.TimeUnit;
 
-import org.openmuc.jasn1.ber.ReverseByteArrayOutputStream;
-import org.openmuc.jasn1.ber.types.BerType;
+import com.beanit.jasn1.ber.ReverseByteArrayOutputStream;
+import com.beanit.jasn1.ber.types.BerType;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelDuplexHandler;

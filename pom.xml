@@ -45,9 +45,9 @@
 	<dependencies>
 		<!-- https://mvnrepository.com/artifact/org.openmuc/jasn1-compiler -->
 		<dependency>
-			<groupId>org.openmuc</groupId>
+			<groupId>com.beanit</groupId>
 			<artifactId>jasn1</artifactId>
-			<version>1.10.0</version>
+			<version>1.11.2</version>
 		</dependency>
 
 		<dependency>

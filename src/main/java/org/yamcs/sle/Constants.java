@@ -3,9 +3,9 @@ package org.yamcs.sle;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.openmuc.jasn1.ber.types.BerNull;
-import org.openmuc.jasn1.ber.types.BerObjectIdentifier;
-import org.openmuc.jasn1.ber.types.string.BerVisibleString;
+import com.beanit.jasn1.ber.types.BerNull;
+import com.beanit.jasn1.ber.types.BerObjectIdentifier;
+import com.beanit.jasn1.ber.types.string.BerVisibleString;
 
 import ccsds.sle.transfer.service.common.types.ConditionalTime;
 import ccsds.sle.transfer.service.common.types.Credentials;

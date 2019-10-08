@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
 
-import org.openmuc.jasn1.ber.BerTag;
-import org.openmuc.jasn1.ber.types.BerOctetString;
+import com.beanit.jasn1.ber.BerTag;
+import com.beanit.jasn1.ber.types.BerOctetString;
 import org.yamcs.sle.Constants.ServiceFunctionalGroup;
 import org.yamcs.sle.Constants.ServiceNameId;
 
@@ -33,10 +33,11 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import static org.yamcs.sle.Constants.*;
+
 /**
- * Implementation for the 
- * CCSDS RECOMMENDED STANDARD FOR SLE FCLTU SERVICE 
- * CCSDS 912.1-B-4 August 2016 
+ * Implementation for the
+ * CCSDS RECOMMENDED STANDARD FOR SLE FCLTU SERVICE
+ * CCSDS 912.1-B-4 August 2016
  * 
  * https://public.ccsds.org/Pubs/912x1b4.pdf
  * 
@@ -45,11 +46,10 @@ import static org.yamcs.sle.Constants.*;
  */
 public class CltuServiceUserHandler extends AbstractServiceUserHandler {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(Isp1Handler.class);
-    int cltuId = 1;
     int eventInvocationId = 1;
 
     private volatile long cltuBufferAvailable;
-    
+
     protected String serviceFunctionalGroupName = "FSL-FG";
     private int serviceInstanceNumber = 1;
 
@@ -75,9 +75,12 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
      * Transfer a CLTU to the provider requesting immediate transmission
      * 
      * @param cltu
+     * @param id
+     *            identification number that will be provided back in the
+     *            {@link CltuSleMonitor#onAsyncNotify(CltuAsyncNotifyInvocation)}
      */
-    public void transferCltu(byte[] cltu) {
-        transferCltu(cltu, null, null, 0, false);
+    public void transferCltu(byte[] cltu, int id) {
+        transferCltu(cltu, id, null, null, 0, true);
     }
 
     /**
@@ -90,12 +93,18 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
      *            transmission.
      * @param latestTransmissionTime
      *            latest transmission time. null can be used to impose no limit.
+     * @param id
+     *            identification number that will be provided back in the
+     *            {@link CltuSleMonitor#onAsyncNotify(CltuAsyncNotifyInvocation)}
      * @param delayMicrosec
      * @param produceReport
+     *            if set to true, the CLTU provider will send a notification upon completion of the radidation. See
+     *            {@link CltuSleMonitor#onAsyncNotify(CltuAsyncNotifyInvocation)}
+     * 
      */
-    public void transferCltu(byte[] cltu, CcsdsTime earliestTransmissionTime,
+    public void transferCltu(byte[] cltu, int id, CcsdsTime earliestTransmissionTime,
             CcsdsTime latestTransmissionTime, long delayMicrosec, boolean produceReport) {
-        channelHandlerContext.executor().execute(() -> sendTransferData(cltu, earliestTransmissionTime,
+        channelHandlerContext.executor().execute(() -> sendTransferData(cltu, id, earliestTransmissionTime,
                 latestTransmissionTime, delayMicrosec, produceReport));
     }
 
@@ -111,7 +120,6 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         return cf;
     }
 
-    
     /**
      * Add a monitor to be notified when events happen.
      * 
@@ -120,10 +128,11 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
     public void addMonitor(CltuSleMonitor monitor) {
         monitors.add(monitor);
     }
+
     public void removeMonitor(CltuSleMonitor monitor) {
         monitors.remove(monitor);
     }
-    
+
     protected void processData(BerTag berTag, InputStream is) throws IOException {
         if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 11)) {
             CltuTransferDataReturn cltuTransferDataReturn = new CltuTransferDataReturn();
@@ -155,14 +164,14 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         }
     }
 
-    private void sendTransferData(byte[] cltu, CcsdsTime earliestTransmissionTime,
+    private void sendTransferData(byte[] cltu, int id, CcsdsTime earliestTransmissionTime,
             CcsdsTime latestTransmissionTime, long delayMicrosec, boolean produceReport) {
         CltuUserToProviderPdu cutp = new CltuUserToProviderPdu();
 
         CltuTransferDataInvocation ctdi = new CltuTransferDataInvocation();
         ctdi.setInvokeId(getInvokeId());
 
-        ctdi.setCltuIdentification(getCltuId());
+        ctdi.setCltuIdentification(new CltuIdentification(id));
         ctdi.setEarliestTransmissionTime(getConditionalTime(earliestTransmissionTime));
         ctdi.setLatestTransmissionTime(getConditionalTime(latestTransmissionTime));
         ctdi.setDelayTime(new Duration(delayMicrosec));
@@ -174,13 +183,9 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         channelHandlerContext.writeAndFlush(cutp);
     }
 
-    private CltuIdentification getCltuId() {
-        return new CltuIdentification(cltuId++);
-    }
-
     private void processTransferDataReturn(CltuTransferDataReturn cltuTransferDataReturn) {
         verifyNonBindCredentials(cltuTransferDataReturn.getPerformerCredentials());
-        
+
         if (logger.isTraceEnabled()) {
             logger.trace("Received CltuTransferDataReturn {}", cltuTransferDataReturn);
         }
@@ -202,7 +207,7 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
 
     private void processThrowEventReturn(CltuThrowEventReturn cltuThrowEventReturn) {
         verifyNonBindCredentials(cltuThrowEventReturn.getPerformerCredentials());
-        
+
         CompletableFuture<Void> cf = getFuture(cltuThrowEventReturn.getInvokeId());
         CltuThrowEventReturn.Result r = cltuThrowEventReturn.getResult();
         if (r.getNegativeResult() != null) {
@@ -220,7 +225,7 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
     protected ServiceInstanceAttribute getServiceNameIdentifier() {
         return ServiceNameId.cltu.getServiceInstanceAttribute(serviceInstanceNumber);
     }
-    
+
     private void sendGetParameter(int parameterId, CompletableFuture<CltuGetParameter> cf) {
         CltuUserToProviderPdu cutp = new CltuUserToProviderPdu();
 
@@ -234,7 +239,7 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
 
     private void processGetParameterReturn(CltuGetParameterReturn cltuGetParameterReturn) {
         verifyNonBindCredentials(cltuGetParameterReturn.getPerformerCredentials());
-        
+
         CompletableFuture<CltuGetParameter> cf = getFuture(cltuGetParameterReturn.getInvokeId());
         CltuGetParameterReturn.Result r = cltuGetParameterReturn.getResult();
         if (r.getNegativeResult() != null) {
@@ -249,7 +254,7 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         if (logger.isTraceEnabled()) {
             logger.trace("Received CltuAsyncNotifyInvocation {}", cltuAsyncNotifyInvocation);
         }
-        monitors.forEach(m -> ((CltuSleMonitor)m).onAsyncNotify(cltuAsyncNotifyInvocation));
+        monitors.forEach(m -> ((CltuSleMonitor) m).onAsyncNotify(cltuAsyncNotifyInvocation));
     }
 
     protected void sendStart(CompletableFuture<Void> cf) {
@@ -289,11 +294,11 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
 
     private void processStatusReportInvocation(CltuStatusReportInvocation cltuStatusReportInvocation) {
         verifyNonBindCredentials(cltuStatusReportInvocation.getInvokerCredentials());
-        
+
         if (logger.isTraceEnabled()) {
             logger.trace("Received CltuStatusReport {}", cltuStatusReportInvocation);
         }
-        monitors.forEach(m -> ((CltuSleMonitor)m).onCltuStatusReport(cltuStatusReportInvocation));
+        monitors.forEach(m -> ((CltuSleMonitor) m).onCltuStatusReport(cltuStatusReportInvocation));
     }
 
     public long getCltuBufferAvailable() {

@@ -1,6 +1,6 @@
 package org.yamcs.sle;
 
-import org.openmuc.jasn1.ber.types.BerType;
+import com.beanit.jasn1.ber.types.BerType;
 
 /**
  * Generic exception thrown from the jsle classes.
