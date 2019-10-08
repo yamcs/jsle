@@ -109,26 +109,33 @@ public class Isp1Authentication {
     /**
      * Verify credentials and throw an exception if they are not correct.
      * This method uses {@link System#currentTimeMillis()} to get the time in milliseconds and compare it with the
-     * received time and {@link #maxDeltaRcvTime}. 
+     * received time and {@link #maxDeltaRcvTime}.
      * 
-     * @param credentials the credentials to be verified
-     * @throws AuthenticationException in case the credentials do not match 
+     * @param credentials
+     *            the credentials to be verified
+     * @throws AuthenticationException
+     *             in case the credentials do not match
      */
     public void verifyCredentials(Credentials credentials) throws AuthenticationException {
         ISP1Credentials cr = new ISP1Credentials();
+        BerOctetString bos = credentials.getUsed();
+        if (bos == null) {
+            throw new AuthenticationException("Provider did not provide credentials");
+        }
         try {
-            cr.decode(new ByteArrayInputStream(credentials.getUsed().value));
+            cr.decode(new ByteArrayInputStream(bos.value));
         } catch (Exception e) {
-            throw new AuthenticationException("Cannot decode credentials", e);
+            e.printStackTrace();
+            throw new AuthenticationException("Cannot decode provider's credentials", e);
         }
         CcsdsTime ct = CcsdsTime.fromCcsds(cr.getTime().value);
         if (System.currentTimeMillis() - ct.toJavaMillisec() > maxDeltaRcvTime) {
-            throw new AuthenticationException("Received credentials are too old");
+            throw new AuthenticationException("Received provider's credentials are too old");
         }
 
         byte[] rcv = getTheProtected(peerUsername, peerPass, cr.getRandomNumber(), cr.getTime());
         if (!Arrays.equals(rcv, cr.getTheProtected().value)) {
-            throw new AuthenticationException("received hash does not match computed hash");
+            throw new AuthenticationException("Received provider's credentials are not correct (hash does not match computed hash)");
         }
     }
 

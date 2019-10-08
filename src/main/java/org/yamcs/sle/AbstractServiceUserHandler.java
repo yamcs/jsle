@@ -85,6 +85,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     Map<Integer, CompletableFuture<?>> pendingInvocations = new HashMap<>();
 
     protected AuthLevel authLevel = AuthLevel.ALL;
+    final protected int serviceInstanceNumber;
    
     int versionNumber = 2;
     public int getVersionNumber() {
@@ -97,10 +98,11 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
 
     protected List<SleMonitor> monitors = new CopyOnWriteArrayList<>();
 
-    public AbstractServiceUserHandler(Isp1Authentication auth, String responderPortId, String initiatorId) {
+    public AbstractServiceUserHandler(Isp1Authentication auth, String responderPortId, String initiatorId, int serviceInstanceNumber) {
         this.initiatorId = initiatorId;
         this.responderPortId = responderPortId;
         this.auth = auth;
+        this.serviceInstanceNumber = serviceInstanceNumber;
     }
 
     @Override
@@ -112,6 +114,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
             InputStream is = new ByteBufInputStream((ByteBuf) msg);
             BerTag berTag = new BerTag();
             berTag.decode(is);
+            
             if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 100)) {
                 SleBindInvocation bindInvocation = new SleBindInvocation();
                 bindInvocation.decode(is, false);
@@ -149,7 +152,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         }
     }
 
-    protected abstract void processData(BerTag berTag, InputStream is) throws IOException;
+    
 
     public AuthLevel getAuthLevel() {
         return authLevel;
@@ -167,7 +170,10 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         monitors.forEach(m -> m.connected());
-        ctx.channel().closeFuture().addListener(cf -> notifyDisconnected());
+        ctx.channel().closeFuture().addListener(cf ->  {
+            logger.warn("Connection closed");
+            notifyDisconnected();   
+        });
     }
 
     public String getServiceAgreementName() {
@@ -188,6 +194,9 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         this.servicePackageName = servicePackageName;
     }
 
+    public boolean isConnected() {
+        return channelHandlerContext.channel().isActive();
+    }
     /**
      * Establish an association with the provider
      * 
@@ -268,7 +277,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     }
 
     
-    abstract void sendStart(CompletableFuture<Void> cf);
+    
 
     private void processPeerAbortInvocation(SlePeerAbort peerAbortInvocation) {
         logger.warn("received PEER-ABORT {}", peerAbortInvocation);
@@ -305,8 +314,6 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         utp.setRafBindInvocation(sbi);
         channelHandlerContext.writeAndFlush(utp);
     }
-
-    protected abstract ApplicationIdentifier getApplicationIdentifier();
 
     private void processBindReturn(SleBindReturn bindReturn) {
         verifyBindCredentials(bindReturn.getPerformerCredentials());
@@ -441,7 +448,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     }
 
     protected void verifyBindCredentials(Credentials credentials) {
-        if (authLevel == AuthLevel.BIND) {
+        if (authLevel == AuthLevel.BIND || authLevel == AuthLevel.ALL) {
             auth.verifyCredentials(credentials);
         }
     }
@@ -461,9 +468,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         return sii;
     }
 
-    protected abstract ServiceInstanceAttribute getServiceFunctionalGroup();
-
-    protected abstract ServiceInstanceAttribute getServiceNameIdentifier();
+   
 
     @SuppressWarnings("unchecked")
     protected <T> CompletableFuture<T> getFuture(InvokeId invokeId) {
@@ -489,8 +494,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
-            throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         monitors.forEach(m -> m.exceptionCaught(cause));
         logger.warn("Caught exception {}", cause.getMessage());
     }
@@ -514,5 +518,12 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         t.setCcsdsFormat(new TimeCCSDS(time.getDaySegmented()));
         return t;
     }
+    
+    protected abstract ApplicationIdentifier getApplicationIdentifier();
+    protected abstract ServiceInstanceAttribute getServiceFunctionalGroup();
+    protected abstract ServiceInstanceAttribute getServiceNameIdentifier();
+    
+    protected abstract void processData(BerTag berTag, InputStream is) throws IOException;
+    abstract void sendStart(CompletableFuture<Void> cf);
 
 }

@@ -2,10 +2,14 @@ package org.yamcs.sle;
 
 
 
+import org.yamcs.sle.AbstractServiceUserHandler.State;
 import org.yamcs.sle.CltuServiceUserHandler;
 import org.yamcs.sle.Isp1Authentication;
 import org.yamcs.sle.Isp1Handler;
 
+import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuAsyncNotifyInvocation;
+import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuStatusReportInvocation;
+import ccsds.sle.transfer.service.cltu.structures.DiagnosticCltuTransferData;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelFuture;
@@ -17,7 +21,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
-public class FirstAttempt {
+public class CltuTest {
     
     public static void main(String[] args) throws Exception {
         String host = "localhost";
@@ -25,9 +29,10 @@ public class FirstAttempt {
         final String responderPortId =  "Harness_Port_1";
         final String initiatorId = "mertens";
         
-        Isp1Authentication isp1Authentication = new Isp1Authentication("mertens", ByteBufUtil.decodeHexDump("000102030405060708090a0b0c0d0e0f"),
-                "mertens", "cucubau1".getBytes(), "SHA-1");
-        CltuServiceUserHandler csuh = new CltuServiceUserHandler(isp1Authentication, responderPortId, initiatorId);
+        Isp1Authentication isp1Authentication = new Isp1Authentication(initiatorId, ByteBufUtil.decodeHexDump("000102030405060708090a0b0c0d0e0f"),
+                "proxy", ByteBufUtil.decodeHexDump("AB0102030405060708090a0b0c0d0e0f"), "SHA-1");
+        CltuServiceUserHandler csuh = new CltuServiceUserHandler(isp1Authentication, responderPortId, initiatorId, 1);
+        csuh.addMonitor(new MyMonitor());
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
             Bootstrap b = new Bootstrap();
@@ -73,13 +78,14 @@ public class FirstAttempt {
            cgpr = csuh.getParameter(ParameterName.expectedSlduIdentification).get();
            System.out.println("expectedSlduIdentification got parameter: "+cgpr);
            */
-           csuh.schedulePeriodicStatusReport(10).get();
-           System.out.println("reporting cycle configured");
+     //      csuh.schedulePeriodicStatusReport(10).get();
+       //    System.out.println("reporting cycle configured");
            
            
            for(int i =0; i<30; i++) {
-               csuh.transferCltu(new byte[100], i);
-               //Thread.sleep(100);
+               System.out.println("before csuh transfer is connected: "+csuh.isConnected());
+               csuh.transferCltu(new byte[100]);
+               Thread.sleep(10000);
            }
            
            Thread.sleep(20000);
@@ -87,6 +93,8 @@ public class FirstAttempt {
            System.out.println("Periodic status report stopped");
            
            f.channel().closeFuture().sync();
+        } catch(Exception e) {
+           e.printStackTrace();
         } finally {
             workerGroup.shutdownGracefully();
         }
@@ -104,4 +112,50 @@ public class FirstAttempt {
             e.printStackTrace();
         } 
     }*/
+    
+    static class MyMonitor implements CltuSleMonitor {
+
+        @Override
+        public void connected() {
+            System.out.println("MyMonitor: connected");
+        }
+
+        @Override
+        public void disconnected() {
+            System.out.println("MyMonitor: disconnected");
+        }
+
+        @Override
+        public void stateChanged(State newState) {
+            System.out.println("MyMonitor: state changed: "+newState);
+        }
+
+        @Override
+        public void exceptionCaught(Throwable t) {
+            System.out.println("MyMonitor: exceptionCaught: "+t);
+        }
+
+        @Override
+        public void onCltuStatusReport(CltuStatusReportInvocation cltuStatusReportInvocation) {
+            System.out.println("MyMonitor: onCltuStatusReport: "+cltuStatusReportInvocation);
+            
+        }
+
+        @Override
+        public void onAsyncNotify(CltuAsyncNotifyInvocation cltuAsyncNotifyInvocation) {
+            System.out.println("MyMonitor: onAsyncNotify: "+cltuAsyncNotifyInvocation);
+        }
+
+        @Override
+        public void onPositiveTransfer(int cltuId) {
+            System.out.println("MyMonitor: onPositiveTransfer: cltuId = "+cltuId);
+            
+        }
+
+        @Override
+        public void onNegativeTransfer(int cltuId, DiagnosticCltuTransferData negativeResult) {
+            System.out.println("MyMonitor: onNegativeTransfer: cltuId: "+cltuId+" negativeResult: "+negativeResult);
+        }
+        
+    }
 }

@@ -262,6 +262,28 @@ public class Constants {
         }
     }
 
+    public static enum CltuProductionStatus {
+        operational(0), configured(1), interrupted(2), halted(3);
+        private final int id;
+
+        private CltuProductionStatus(int id) {
+            this.id = id;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        static public CltuProductionStatus byId(int id) {
+            for (CltuProductionStatus v : values()) {
+                if (v.id == id) {
+                    return v;
+                }
+            }
+            throw new IllegalArgumentException("invalid id " + id);
+        }
+    }
+
     public static enum LockStatus {
         inLock(0), outOfLock(1), notInUse(2), unknown(3);
         private final int id;
@@ -276,6 +298,28 @@ public class Constants {
 
         static public LockStatus byId(int id) {
             for (LockStatus v : values()) {
+                if (v.id == id) {
+                    return v;
+                }
+            }
+            throw new IllegalArgumentException("invalid id " + id);
+        }
+    }
+
+    public static enum UplinkStatus {
+        uplinkStatusNotAvailable(0), noRfAvailable(1), noBitLock(2), nominal(3);
+        private final int id;
+
+        private UplinkStatus(int id) {
+            this.id = id;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        static public UplinkStatus byId(int id) {
+            for (UplinkStatus v : values()) {
                 if (v.id == id) {
                     return v;
                 }

@@ -10,6 +10,7 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.DecoderException;
+import io.netty.util.concurrent.ScheduledFuture;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
@@ -39,6 +40,7 @@ public class Isp1Handler extends ChannelDuplexHandler {
     long lastMessageSentTime;
     
     boolean heartbeatInitialized = false;
+    private ScheduledFuture<?> heartbeatFuture;
     
     public Isp1Handler(boolean initiator) {
         this.initiator = initiator;
@@ -81,6 +83,9 @@ public class Isp1Handler extends ChannelDuplexHandler {
                 }
             }, ctxTimeout, TimeUnit.SECONDS);
         }
+        ctx.channel().closeFuture().addListener(cf ->  {
+            heartbeatFuture.cancel(true);
+        });
         super.channelActive(ctx);
     }
 
@@ -137,7 +142,7 @@ public class Isp1Handler extends ChannelDuplexHandler {
     private void scheduleHeartbeats(ChannelHandlerContext ctx) {
         lastMessageReceivedTime = System.currentTimeMillis();
         lastMessageSentTime = lastMessageReceivedTime;
-        ctx.executor().scheduleAtFixedRate(() -> {
+        heartbeatFuture = ctx.executor().scheduleAtFixedRate(() -> {
             checkHeartbeat(ctx);
             sendHeartbeat(ctx);
         }, heartbeatInterval, heartbeatInterval, TimeUnit.SECONDS);
@@ -159,6 +164,7 @@ public class Isp1Handler extends ChannelDuplexHandler {
         if((t-lastMessageReceivedTime)/1000 >= heartbeatInterval*heartbeatDeadFactor) {
             logger.warn("No message received in the last {} seconds, closing the connection", (t-lastMessageReceivedTime)/1000);
             ctx.close();
+            heartbeatFuture.cancel(true);
         }
     }
 

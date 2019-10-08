@@ -45,14 +45,12 @@ public class RafServiceUserHandler extends AbstractServiceUserHandler {
     protected String serviceFunctionalGroupName = "RSL-FG";
 
     private DeliveryMode deliveryMode;
-    private int serviceInstanceNumber;
     private RequestedFrameQuality requestedFrameQuality = RequestedFrameQuality.goodFramesOnly;
 
     public RafServiceUserHandler(Isp1Authentication auth, String responderPortId, String initiatorId,
             DeliveryMode deliveryMode, int serviceInstanceNumber, FrameConsumer consumer) {
-        super(auth, responderPortId, initiatorId);
+        super(auth, responderPortId, initiatorId, serviceInstanceNumber);
         this.consumer = consumer;
-        this.serviceInstanceNumber = serviceInstanceNumber;
         setDeliveryMode(deliveryMode);
     }
 
@@ -97,9 +95,6 @@ public class RafServiceUserHandler extends AbstractServiceUserHandler {
         return serviceInstanceNumber;
     }
 
-    public void setServiceInstanceNumber(int serviceInstanceNumber) {
-        this.serviceInstanceNumber = serviceInstanceNumber;
-    }
 
     /**
      * Request that the SLE service provider starts sending
