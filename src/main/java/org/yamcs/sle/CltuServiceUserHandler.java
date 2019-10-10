@@ -52,12 +52,10 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
 
     private volatile long cltuBufferAvailable;
 
-    protected String serviceFunctionalGroupName = "FSL-FG";
-   
     private AtomicInteger nextCltuId = new AtomicInteger(1);
 
-    public CltuServiceUserHandler(Isp1Authentication auth, String responderPortId, String initiatorId, int serviceInstanceNumber) {
-        super(auth, responderPortId, initiatorId, serviceInstanceNumber);
+    public CltuServiceUserHandler(Isp1Authentication auth, SleAttributes attr) {
+        super(auth, attr);
     }
 
     /**
@@ -107,18 +105,17 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
      */
     public int transferCltu(byte[] cltu, CcsdsTime earliestTransmissionTime,
             CcsdsTime latestTransmissionTime, long delayMicrosec, boolean produceReport) {
-        
-        if(!channelHandlerContext.channel().isActive()) {
+
+        if (!channelHandlerContext.channel().isActive()) {
             throw new IllegalStateException("channel is not active");
         }
-        
+
         int id = nextCltuId.getAndIncrement();
         channelHandlerContext.executor().execute(() -> sendTransferData(cltu, earliestTransmissionTime,
                 latestTransmissionTime, delayMicrosec, produceReport, id));
         return id;
     }
 
-   
     /**
      * 
      * @param eventIdentifier
@@ -202,17 +199,16 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         }
         this.cltuBufferAvailable = cltuTransferDataReturn.getCltuBufferAvailable().longValue();
 
-       
-
         Result r = cltuTransferDataReturn.getResult();
         if (r.getPositiveResult() != null) {
             int cltuId = cltuTransferDataReturn.getCltuIdentification().intValue() - 1;
             monitors.forEach(m -> ((CltuSleMonitor) m).onPositiveTransfer(cltuId));
-        } else if (r.getNegativeResult()!=null) {
+        } else if (r.getNegativeResult() != null) {
             int cltuId = cltuTransferDataReturn.getCltuIdentification().intValue();
             monitors.forEach(m -> ((CltuSleMonitor) m).onNegativeTransfer(cltuId, r.getNegativeResult()));
         } else {
-            logger.error("Received CLTRU transfer data return withotu positive or negative result {}", cltuTransferDataReturn);
+            logger.error("Received CLTRU transfer data return withotu positive or negative result {}",
+                    cltuTransferDataReturn);
         }
     }
 
@@ -295,7 +291,7 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
 
     private void processStartReturn(CltuStartReturn cltuStartReturn) {
         verifyNonBindCredentials(cltuStartReturn.getPerformerCredentials());
-        
+
         if (state != State.STARTING) {
             peerAbort();
             return;
@@ -322,17 +318,17 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
     public long getCltuBufferAvailable() {
         return cltuBufferAvailable;
     }
-    
+
     @Override
     protected ServiceInstanceAttribute getServiceFunctionalGroup() {
-        return ServiceFunctionalGroup.fslFg.getServiceInstanceAttribute(serviceFunctionalGroupName);
+        return ServiceFunctionalGroup.fslFg.getServiceInstanceAttribute(attr.sfg);
     }
 
     @Override
     protected ServiceInstanceAttribute getServiceNameIdentifier() {
-        return ServiceNameId.cltu.getServiceInstanceAttribute(serviceInstanceNumber);
+        return ServiceNameId.cltu.getServiceInstanceAttribute(attr.sinst);
     }
-    
+
     @Override
     protected ApplicationIdentifier getApplicationIdentifier() {
         return Constants.ApplicationIdentifier.fwdCltu;

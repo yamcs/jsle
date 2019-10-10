@@ -63,12 +63,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         NONE, BIND, ALL;
     }
 
-    protected String serviceAgreementName = "SAGR";
-    protected String servicePackageName = "SPACK";
-
     final Isp1Authentication auth;
-    final String initiatorId;
-    final String responderPortId;
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractServiceUserHandler.class);
     private int invokeId = 1;
@@ -85,9 +80,11 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     Map<Integer, CompletableFuture<?>> pendingInvocations = new HashMap<>();
 
     protected AuthLevel authLevel = AuthLevel.ALL;
-    final protected int serviceInstanceNumber;
-   
+    
+    final protected SleAttributes attr;
+    
     int versionNumber = 2;
+
     public int getVersionNumber() {
         return versionNumber;
     }
@@ -98,11 +95,9 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
 
     protected List<SleMonitor> monitors = new CopyOnWriteArrayList<>();
 
-    public AbstractServiceUserHandler(Isp1Authentication auth, String responderPortId, String initiatorId, int serviceInstanceNumber) {
-        this.initiatorId = initiatorId;
-        this.responderPortId = responderPortId;
+    public AbstractServiceUserHandler(Isp1Authentication auth, SleAttributes attr) {
         this.auth = auth;
-        this.serviceInstanceNumber = serviceInstanceNumber;
+        this.attr = attr;
     }
 
     @Override
@@ -114,7 +109,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
             InputStream is = new ByteBufInputStream((ByteBuf) msg);
             BerTag berTag = new BerTag();
             berTag.decode(is);
-            
+
             if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 100)) {
                 SleBindInvocation bindInvocation = new SleBindInvocation();
                 bindInvocation.decode(is, false);
@@ -152,8 +147,6 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         }
     }
 
-    
-
     public AuthLevel getAuthLevel() {
         return authLevel;
     }
@@ -170,33 +163,17 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         monitors.forEach(m -> m.connected());
-        ctx.channel().closeFuture().addListener(cf ->  {
+        ctx.channel().closeFuture().addListener(cf -> {
             logger.warn("Connection closed");
-            notifyDisconnected();   
+            notifyDisconnected();
         });
     }
 
-    public String getServiceAgreementName() {
-        return serviceAgreementName;
-    }
-
-    public void setServiceAgreementName(String serviceAgreementName) {
-        checkUnbound();
-        this.serviceAgreementName = serviceAgreementName;
-    }
-
-    public String getServicePackageName() {
-        return servicePackageName;
-    }
-
-    public void setServicePackageName(String servicePackageName) {
-        checkUnbound();
-        this.servicePackageName = servicePackageName;
-    }
 
     public boolean isConnected() {
         return channelHandlerContext.channel().isActive();
     }
+
     /**
      * Establish an association with the provider
      * 
@@ -263,7 +240,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         channelHandlerContext.executor().execute(() -> sendScheduleStatusReport(rrt, cf));
         return cf;
     }
-    
+
     public void shutdown() {
         channelHandlerContext.close();
     }
@@ -275,9 +252,6 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
             throw new IllegalStateException("This method can only be invoked in the UNBOUND state");
         }
     }
-
-    
-    
 
     private void processPeerAbortInvocation(SlePeerAbort peerAbortInvocation) {
         logger.warn("received PEER-ABORT {}", peerAbortInvocation);
@@ -295,7 +269,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         RafUsertoProviderPdu utp = new RafUsertoProviderPdu();
 
         SleBindInvocation sbi = new SleBindInvocation();
-        sbi.setInitiatorIdentifier(new AuthorityIdentifier(initiatorId.getBytes(StandardCharsets.US_ASCII)));
+        sbi.setInitiatorIdentifier(new AuthorityIdentifier(attr.initiatorId.getBytes(StandardCharsets.US_ASCII)));
         if (authLevel == AuthLevel.NONE) {
             sbi.setInvokerCredentials(CREDENTIALS_UNUSED);
         } else {
@@ -304,7 +278,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         ServiceInstanceIdentifier sii = getServiceInstanceIdentifier();
 
         sbi.setServiceInstanceIdentifier(sii);
-        sbi.setResponderPortIdentifier(new PortId(responderPortId.getBytes(StandardCharsets.US_ASCII)));
+        sbi.setResponderPortIdentifier(new PortId(attr.responderPortId.getBytes(StandardCharsets.US_ASCII)));
         sbi.setVersionNumber(new VersionNumber(versionNumber));
         ApplicationIdentifier appId = getApplicationIdentifier();
         sbi.setServiceType(
@@ -461,14 +435,12 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     protected ServiceInstanceIdentifier getServiceInstanceIdentifier() {
         ServiceInstanceIdentifier sii = new ServiceInstanceIdentifier();
         List<ServiceInstanceAttribute> l = sii.getServiceInstanceAttribute();
-        l.add(ServiceAgreement.sagr.getServiceInstanceAttribute(serviceAgreementName));
-        l.add(ServicePackage.spack.getServiceInstanceAttribute(servicePackageName));
+        l.add(ServiceAgreement.sagr.getServiceInstanceAttribute(attr.sagr));
+        l.add(ServicePackage.spack.getServiceInstanceAttribute(attr.spack));
         l.add(getServiceFunctionalGroup());
         l.add(getServiceNameIdentifier());
         return sii;
     }
-
-   
 
     @SuppressWarnings("unchecked")
     protected <T> CompletableFuture<T> getFuture(InvokeId invokeId) {
@@ -500,7 +472,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     }
 
     protected void notifyDisconnected() {
-        monitors.forEach(m-> m.disconnected());
+        monitors.forEach(m -> m.disconnected());
     }
 
     protected static ConditionalTime getConditionalTime(CcsdsTime time) {
@@ -518,12 +490,15 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         t.setCcsdsFormat(new TimeCCSDS(time.getDaySegmented()));
         return t;
     }
-    
+
     protected abstract ApplicationIdentifier getApplicationIdentifier();
+
     protected abstract ServiceInstanceAttribute getServiceFunctionalGroup();
+
     protected abstract ServiceInstanceAttribute getServiceNameIdentifier();
-    
+
     protected abstract void processData(BerTag berTag, InputStream is) throws IOException;
+
     abstract void sendStart(CompletableFuture<Void> cf);
 
 }

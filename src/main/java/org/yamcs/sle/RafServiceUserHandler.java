@@ -42,14 +42,12 @@ public class RafServiceUserHandler extends AbstractServiceUserHandler {
     int eventInvocationId = 1;
 
     FrameConsumer consumer;
-    protected String serviceFunctionalGroupName = "RSL-FG";
 
     private DeliveryMode deliveryMode;
     private RequestedFrameQuality requestedFrameQuality = RequestedFrameQuality.goodFramesOnly;
 
-    public RafServiceUserHandler(Isp1Authentication auth, String responderPortId, String initiatorId,
-            DeliveryMode deliveryMode, int serviceInstanceNumber, FrameConsumer consumer) {
-        super(auth, responderPortId, initiatorId, serviceInstanceNumber);
+    public RafServiceUserHandler(Isp1Authentication auth, SleAttributes attr, DeliveryMode deliveryMode, FrameConsumer consumer) {
+        super(auth, attr);
         this.consumer = consumer;
         setDeliveryMode(deliveryMode);
     }
@@ -68,19 +66,6 @@ public class RafServiceUserHandler extends AbstractServiceUserHandler {
         return cf;
     }
 
-    public String getServiceFunctionalGroupName() {
-        return serviceFunctionalGroupName;
-    }
-
-    /**
-     * Set the service functional group name that will be send to the service provider in the bind
-     * 
-     * @param serviceFunctionalGroupName
-     */
-    public void setServiceFunctionalGroupName(String serviceFunctionalGroupName) {
-        checkUnbound();
-        this.serviceFunctionalGroupName = serviceFunctionalGroupName;
-    }
 
     public DeliveryMode getDeliveryMode() {
         return deliveryMode;
@@ -89,10 +74,6 @@ public class RafServiceUserHandler extends AbstractServiceUserHandler {
     public void setDeliveryMode(DeliveryMode deliveryMode) {
         checkUnbound();
         this.deliveryMode = deliveryMode;
-    }
-
-    public int getServiceInstanceNumber() {
-        return serviceInstanceNumber;
     }
 
 
@@ -271,11 +252,11 @@ public class RafServiceUserHandler extends AbstractServiceUserHandler {
     }
 
     protected ServiceInstanceAttribute getServiceFunctionalGroup() {
-        return ServiceFunctionalGroup.rslFg.getServiceInstanceAttribute(serviceFunctionalGroupName);
+        return ServiceFunctionalGroup.rslFg.getServiceInstanceAttribute(attr.sfg);
     }
 
     protected ServiceInstanceAttribute getServiceNameIdentifier() {
-        return ServiceNameId.raf.getServiceInstanceAttribute(deliveryMode, serviceInstanceNumber);
+        return ServiceNameId.raf.getServiceInstanceAttribute(deliveryMode, attr.sinst);
     }
 
     @Override
