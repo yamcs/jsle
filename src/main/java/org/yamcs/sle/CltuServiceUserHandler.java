@@ -7,8 +7,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.beanit.jasn1.ber.BerTag;
 import com.beanit.jasn1.ber.types.BerOctetString;
-import org.yamcs.sle.Constants.ServiceFunctionalGroup;
-import org.yamcs.sle.Constants.ServiceNameId;
 
 import ccsds.sle.transfer.service.cltu.incoming.pdus.CltuGetParameterInvocation;
 import ccsds.sle.transfer.service.cltu.incoming.pdus.CltuStartInvocation;
@@ -30,7 +28,6 @@ import ccsds.sle.transfer.service.cltu.structures.EventInvocationId;
 import ccsds.sle.transfer.service.common.types.Duration;
 import ccsds.sle.transfer.service.common.types.IntPosShort;
 import ccsds.sle.transfer.service.common.types.InvokeId;
-import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceAttribute;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
@@ -319,15 +316,6 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         return cltuBufferAvailable;
     }
 
-    @Override
-    protected ServiceInstanceAttribute getServiceFunctionalGroup() {
-        return ServiceFunctionalGroup.fslFg.getServiceInstanceAttribute(attr.sfg);
-    }
-
-    @Override
-    protected ServiceInstanceAttribute getServiceNameIdentifier() {
-        return ServiceNameId.cltu.getServiceInstanceAttribute(attr.sinst);
-    }
 
     @Override
     protected ApplicationIdentifier getApplicationIdentifier() {

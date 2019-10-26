@@ -13,8 +13,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.beanit.jasn1.ber.BerTag;
 import org.yamcs.sle.Constants.ApplicationIdentifier;
-import org.yamcs.sle.Constants.ServiceAgreement;
-import org.yamcs.sle.Constants.ServicePackage;
 
 import ccsds.sle.transfer.service.bind.types.AuthorityIdentifier;
 import ccsds.sle.transfer.service.bind.types.PortId;
@@ -109,7 +107,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
             InputStream is = new ByteBufInputStream((ByteBuf) msg);
             BerTag berTag = new BerTag();
             berTag.decode(is);
-
+            
             if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 100)) {
                 SleBindInvocation bindInvocation = new SleBindInvocation();
                 bindInvocation.decode(is, false);
@@ -275,7 +273,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         } else {
             sbi.setInvokerCredentials(auth.generateCredentials());
         }
-        ServiceInstanceIdentifier sii = getServiceInstanceIdentifier();
+        ServiceInstanceIdentifier sii = StringConverter.parseServiceInstanceIdentifier(attr.serviceInstance);
 
         sbi.setServiceInstanceIdentifier(sii);
         sbi.setResponderPortIdentifier(new PortId(attr.responderPortId.getBytes(StandardCharsets.US_ASCII)));
@@ -432,16 +430,6 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         return new InvokeId(n);
     }
 
-    protected ServiceInstanceIdentifier getServiceInstanceIdentifier() {
-        ServiceInstanceIdentifier sii = new ServiceInstanceIdentifier();
-        List<ServiceInstanceAttribute> l = sii.getServiceInstanceAttribute();
-        l.add(ServiceAgreement.sagr.getServiceInstanceAttribute(attr.sagr));
-        l.add(ServicePackage.spack.getServiceInstanceAttribute(attr.spack));
-        l.add(getServiceFunctionalGroup());
-        l.add(getServiceNameIdentifier());
-        return sii;
-    }
-
     @SuppressWarnings("unchecked")
     protected <T> CompletableFuture<T> getFuture(InvokeId invokeId) {
         CompletableFuture<T> cf = (CompletableFuture<T>) pendingInvocations.remove(invokeId.intValue());
@@ -492,10 +480,6 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     }
 
     protected abstract ApplicationIdentifier getApplicationIdentifier();
-
-    protected abstract ServiceInstanceAttribute getServiceFunctionalGroup();
-
-    protected abstract ServiceInstanceAttribute getServiceNameIdentifier();
 
     protected abstract void processData(BerTag berTag, InputStream is) throws IOException;
 

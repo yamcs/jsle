@@ -121,7 +121,7 @@ public class Isp1Handler extends ChannelDuplexHandler {
             heartbeatDeadFactor = buf.readShort();
             logger.debug("received context heartbeatInterval: {}, heartbeatDeadFactor: {}", heartbeatInterval,
                     heartbeatDeadFactor);
-            if (heartbeatInterval == 0) {// no heartbead required
+            if (heartbeatInterval == 0) {// no heartbeat required
                 heartbeatInitialized = true;
                 return;
             }

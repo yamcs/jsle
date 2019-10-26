@@ -4,14 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.beanit.jasn1.ber.types.BerNull;
-import com.beanit.jasn1.ber.types.BerObjectIdentifier;
-import com.beanit.jasn1.ber.types.string.BerVisibleString;
 
 import ccsds.sle.transfer.service.common.types.ConditionalTime;
 import ccsds.sle.transfer.service.common.types.Credentials;
 import ccsds.sle.transfer.service.common.types.SlduStatusNotification;
-import ccsds.sle.transfer.service.service.instance.id.OidValues;
-import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceAttribute;
 
 /**
  * This class encodes as static members and subclasses with static members a lot of the constants defined in the SLE
@@ -80,33 +76,6 @@ public class Constants {
                 }
             }
             throw new IllegalArgumentException("invalid id " + id);
-        }
-    }
-
-    public static enum ServiceAgreement {
-        sagr;
-        public ServiceInstanceAttribute getServiceInstanceAttribute(String name) {
-            return getSia(OidValues.sagr, name);
-        }
-    }
-
-    public static enum ServicePackage {
-        spack;
-        public ServiceInstanceAttribute getServiceInstanceAttribute(String name) {
-            return getSia(OidValues.spack, name);
-        }
-    }
-
-    public static enum ServiceFunctionalGroup {
-        fslFg(OidValues.fslFg), rslFg(OidValues.rslFg);
-        final BerObjectIdentifier oid;
-
-        private ServiceFunctionalGroup(BerObjectIdentifier oid) {
-            this.oid = oid;
-        }
-
-        public ServiceInstanceAttribute getServiceInstanceAttribute(String name) {
-            return getSia(oid, name);
         }
     }
 
@@ -182,57 +151,6 @@ public class Constants {
         }
     }
 
-    /**
-     * Service name identifier as found in the comments of the ASN1 file.
-     * Do not change the names of the enumerations!
-     */
-    public static enum ServiceNameId {
-        cltu(OidValues.cltu, false), fsp(OidValues.fsp, false), tcva(OidValues.fsp, false),
-        //
-        tcf(OidValues.tcf, false), raf(OidValues.raf, true), rcf(OidValues.rcf, true),
-        //
-        rocf(OidValues.rocf, true), rsp(OidValues.rsp, true), rcfsh(OidValues.rcfsh, true);
-
-        final BerObjectIdentifier oid;
-        final boolean differentDeliveryModes;
-
-        private ServiceNameId(BerObjectIdentifier oid, boolean differentDeliveryModes) {
-            this.oid = oid;
-            this.differentDeliveryModes = differentDeliveryModes;
-        }
-
-        public ServiceInstanceAttribute getServiceInstanceAttribute(int instanceNumber) {
-            if (differentDeliveryModes) {
-                throw new IllegalArgumentException(this
-                        + " requires the delivery mode to be specified (use the other getServiceInstanceAttribute method)");
-            }
-
-            return getSia(oid, this.name() + instanceNumber);
-        }
-
-        public ServiceInstanceAttribute getServiceInstanceAttribute(DeliveryMode deliveryMode, int instanceNumber) {
-            if (!differentDeliveryModes) {
-                throw new IllegalArgumentException("Delivery mode not supported for " + this
-                        + " (use the other getServiceInstanceAttribute method)");
-            }
-            String name;
-            switch (deliveryMode) {
-            case rtnCompleteOnline:
-                name = "onlc";
-                break;
-            case rtnTimelyOnline:
-                name = "onlt";
-                break;
-            case rtnOffline:
-                name = "offl";
-                break;
-            default:
-                throw new IllegalArgumentException("Invalid delivery mode specified: " + deliveryMode);
-            }
-            return getSia(oid, name + instanceNumber);
-        }
-
-    }
 
     public static class FrameQuality {
         static final int good = 0;
@@ -348,14 +266,5 @@ public class Constants {
             }
             throw new IllegalArgumentException("invalid id " + id);
         }
-    }
-
-    private static ServiceInstanceAttribute getSia(BerObjectIdentifier oid, String name) {
-        ServiceInstanceAttribute sia = new ServiceInstanceAttribute();
-        ServiceInstanceAttribute.SEQUENCE sias = new ServiceInstanceAttribute.SEQUENCE();
-        sias.setIdentifier(oid);
-        sias.setSiAttributeValue(new BerVisibleString(name));
-        sia.getSEQUENCE().add(sias);
-        return sia;
     }
 }

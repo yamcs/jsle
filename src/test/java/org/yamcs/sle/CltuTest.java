@@ -32,7 +32,7 @@ public class CltuTest {
         Isp1Authentication isp1Authentication = new Isp1Authentication(initiatorId, ByteBufUtil.decodeHexDump("000102030405060708090a0b0c0d0e0f"),
                 "proxy", ByteBufUtil.decodeHexDump("AB0102030405060708090a0b0c0d0e0f"), "SHA-1");
         
-        SleAttributes attr = new SleAttributes(responderPortId, initiatorId, "SAGR", "SPACK", "FSL-FG", 1);
+        SleAttributes attr = new SleAttributes(responderPortId, initiatorId, "sagr=SAGR.spack=SPACK.fsl-fg=FSL-FG.cltu=cltu1");
         CltuServiceUserHandler csuh = new CltuServiceUserHandler(isp1Authentication, attr);
         csuh.addMonitor(new MyMonitor());
         EventLoopGroup workerGroup = new NioEventLoopGroup();

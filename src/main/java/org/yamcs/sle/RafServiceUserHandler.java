@@ -22,7 +22,6 @@ import ccsds.sle.transfer.service.raf.structures.LockStatusReport;
 import ccsds.sle.transfer.service.raf.structures.Notification;
 import ccsds.sle.transfer.service.raf.structures.RafGetParameter;
 import ccsds.sle.transfer.service.raf.structures.RafParameterName;
-import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceAttribute;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
@@ -249,14 +248,6 @@ public class RafServiceUserHandler extends AbstractServiceUserHandler {
             }
         }
 
-    }
-
-    protected ServiceInstanceAttribute getServiceFunctionalGroup() {
-        return ServiceFunctionalGroup.rslFg.getServiceInstanceAttribute(attr.sfg);
-    }
-
-    protected ServiceInstanceAttribute getServiceNameIdentifier() {
-        return ServiceNameId.raf.getServiceInstanceAttribute(deliveryMode, attr.sinst);
     }
 
     @Override

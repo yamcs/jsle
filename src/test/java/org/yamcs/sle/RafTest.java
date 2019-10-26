@@ -34,9 +34,9 @@ public class RafTest {
 
         Isp1Authentication isp1Authentication = new Isp1Authentication("mertens",
                 ByteBufUtil.decodeHexDump("000102030405060708090a0b0c0d0e0f"),
-                "mertens", ByteBufUtil.decodeHexDump("000102030405060708090a0b0c0d0e0f"), "SHA-1");
+                "proxy", ByteBufUtil.decodeHexDump("AB0102030405060708090a0b0c0d0e0f"), "SHA-1");
         MyConsumer c = new MyConsumer();
-        SleAttributes attr = new SleAttributes(responderPortId, initiatorId, "SAGR", "SPACK", "RSL-FG", 1);
+        SleAttributes attr = new SleAttributes(responderPortId, initiatorId, "sagr=SAGR.spack=SPACK.rsl-fg=RSL-FG.raf=onlt1");
         RafServiceUserHandler rsuh = new RafServiceUserHandler(isp1Authentication, attr,  DeliveryMode.rtnTimelyOnline, c);
 
         MyMonitor m = new MyMonitor();
@@ -61,7 +61,6 @@ public class RafTest {
 
             // Start the client.
             ChannelFuture f = b.connect(host, port).sync();
-            Thread.sleep(1000);
 
             rsuh.bind().get();
 
@@ -122,7 +121,9 @@ public class RafTest {
 
         @Override
         public void acceptFrame(RafTransferDataInvocation rtdi) {
-            System.out.println("accept frame: " + rtdi);
+            CcsdsTime ct = CcsdsTime.fromSle(rtdi.getEarthReceiveTime());
+            System.out.println("picoinday: "+ct.getPicosecInDay());
+            System.out.println(ct+" accept frame: " + rtdi);
         }
 
         @Override

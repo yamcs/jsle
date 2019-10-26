@@ -14,8 +14,10 @@ public class CcsdsTime {
     static final int NUM_DAYS_1958_1970 = 4383;
 
     final private int numDays;
+   
     final private long picosecInDay;
 
+ 
     public CcsdsTime(int numDays, long picosecInDay) {
         this.numDays = numDays;
         this.picosecInDay = picosecInDay;
@@ -100,10 +102,10 @@ public class CcsdsTime {
      * @return
      */
     public static CcsdsTime fromSle(Time time) {
-        if (time.getCcsdsFormat() != null) {
-            return fromCcsds(time.getCcsdsFormat().value);
-        } else if (time.getCcsdsPicoFormat() != null) {
+        if (time.getCcsdsPicoFormat() != null) {
             return fromCcsdsPico(time.getCcsdsPicoFormat().value);
+        } else if (time.getCcsdsFormat() != null) {
+            return fromCcsds(time.getCcsdsFormat().value);
         } else {
             throw new NullPointerException();
         }
@@ -138,10 +140,17 @@ public class CcsdsTime {
         return r;
     }
 
+    public long getPicosecInDay() {
+        return picosecInDay;
+    }
+    public int getNumDays() {
+        return numDays;
+    }
+
     /**
      * Converts to java milliseconds. Note: this loses precision.
      * 
-     * @return the java millisecons since 1970. 
+     * @return the java milliseconds since 1970. 
      */
     public long toJavaMillisec() {
         return ((long) numDays - NUM_DAYS_1958_1970) * MS_IN_DAY + picosecInDay / 1000_000_000;
