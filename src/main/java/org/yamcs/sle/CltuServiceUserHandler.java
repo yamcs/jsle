@@ -69,6 +69,9 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         return cf;
     }
 
+    public CompletableFuture<CltuGetParameter> getParameter(ParameterName parameterName) {
+        return getParameter(parameterName.getId());
+    }
     /**
      * Transfer a CLTU to the provider requesting immediate transmission
      * 
@@ -271,6 +274,7 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
             cf.completeExceptionally(new SleException("Cannot call start while in state " + state));
             return;
         }
+        
         state = State.STARTING;
         this.startingCf = cf;
 

@@ -256,6 +256,6 @@ public class RafServiceUserHandler extends AbstractServiceUserHandler {
     }
 
     public boolean isConnected() {
-        return channelHandlerContext.channel().isOpen();
+        return channelHandlerContext.channel().isActive();
     }
 }

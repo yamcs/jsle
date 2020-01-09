@@ -37,7 +37,6 @@ import ccsds.sle.transfer.service.common.types.InvokeId;
 import ccsds.sle.transfer.service.common.types.Time;
 import ccsds.sle.transfer.service.common.types.TimeCCSDS;
 import ccsds.sle.transfer.service.raf.incoming.pdus.RafUsertoProviderPdu;
-import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceAttribute;
 import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceIdentifier;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
@@ -81,7 +80,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     
     final protected SleAttributes attr;
     
-    int versionNumber = 2;
+    int versionNumber = 4;
 
     public int getVersionNumber() {
         return versionNumber;
