@@ -44,7 +44,7 @@ import static org.yamcs.sle.Constants.*;
  *
  */
 public class CltuServiceUserHandler extends AbstractServiceUserHandler {
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(Isp1Handler.class);
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(CltuServiceUserHandler.class);
     int eventInvocationId = 1;
 
     private volatile long cltuBufferAvailable;
@@ -275,7 +275,7 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
             return;
         }
         
-        state = State.STARTING;
+        changeState(State.STARTING);
         this.startingCf = cf;
 
         CltuUserToProviderPdu cutp = new CltuUserToProviderPdu();
@@ -286,7 +286,7 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         csi.setInvokerCredentials(getNonBindCredentials());
 
         cutp.setCltuStartInvocation(csi);
-        logger.info("Sending start request {}", cutp);
+        logger.debug("Sending start request {}", cutp);
         channelHandlerContext.writeAndFlush(cutp);
     }
 
@@ -299,11 +299,12 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         }
         ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuStartReturn.Result r = cltuStartReturn.getResult();
         if (r.getNegativeResult() != null) {
-            startingCf.completeExceptionally(new SleException("failed to start", r.getNegativeResult()));
-            state = State.READY;
+            logger.warn("Received negative response to start request: {}", r.getNegativeResult());
+            changeState(State.READY);
+            startingCf.completeExceptionally(new SleException("received negative result to start request: "+StringConverter.toString(r.getNegativeResult())));
         } else {
+            changeState(State.ACTIVE);
             startingCf.complete(null);
-            state = State.ACTIVE;
         }
     }
 

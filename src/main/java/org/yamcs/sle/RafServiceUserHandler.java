@@ -36,7 +36,7 @@ import static org.yamcs.sle.Constants.*;
  *
  */
 public class RafServiceUserHandler extends AbstractServiceUserHandler {
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(Isp1Handler.class);
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(RafServiceUserHandler.class);
     int cltuId = 1;
     int eventInvocationId = 1;
 
@@ -156,7 +156,7 @@ public class RafServiceUserHandler extends AbstractServiceUserHandler {
             cf.completeExceptionally(new SleException("Cannot call start while in state " + state));
             return;
         }
-        state = State.STARTING;
+        changeState(State.STARTING);
         this.startingCf = cf;
 
         RafUsertoProviderPdu rutp = new RafUsertoProviderPdu();
@@ -184,11 +184,11 @@ public class RafServiceUserHandler extends AbstractServiceUserHandler {
         }
         ccsds.sle.transfer.service.raf.outgoing.pdus.RafStartReturn.Result r = rafStartReturn.getResult();
         if (r.getNegativeResult() != null) {
+            changeState(State.READY);
             startingCf.completeExceptionally(new SleException("failed to start", r.getNegativeResult()));
-            state = State.READY;
         } else {
+            changeState(State.ACTIVE);
             startingCf.complete(null);
-            state = State.ACTIVE;
         }
     }
 
