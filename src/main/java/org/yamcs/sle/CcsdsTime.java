@@ -67,8 +67,8 @@ public class CcsdsTime {
             throw new IllegalArgumentException("Invalid number of bytes " + ds.length + "; expected 10");
         }
         int nd = ((ds[0] & 0xFF) << 8) + (ds[1] & 0xFF);
-        long millis = ((ds[2] & 0xFFl) << 24) + ((ds[3] & 0xFFl) << 16) + ((ds[4] & 0xFFl) << 16) + ((ds[5] & 0xFFl));
-        long ps = ((ds[6] & 0xFFl) << 24) + ((ds[7] & 0xFFl) << 16) + ((ds[8] & 0xFFl) << 16) + ((ds[9] & 0xFFl));
+        long millis = ((ds[2] & 0xFFl) << 24) + ((ds[3] & 0xFFl) << 16) + ((ds[4] & 0xFFl) << 8) + ((ds[5] & 0xFFl));
+        long ps = ((ds[6] & 0xFFl) << 24) + ((ds[7] & 0xFFl) << 16) + ((ds[8] & 0xFFl) << 8) + ((ds[9] & 0xFFl));
 
         return new CcsdsTime(nd, millis * 1000_000_000 + ps);
     }
@@ -93,6 +93,19 @@ public class CcsdsTime {
         int numDays = (int) (javaTime / MS_IN_DAY) + NUM_DAYS_1958_1970;
         int msOfDay = (int) (javaTime % MS_IN_DAY);
         return new CcsdsTime(numDays, 1000_000_000L * msOfDay);
+    }
+    
+
+    /**
+     * Converts a UNIX time in seconds since 1970, picoseconds in second
+     * 
+     * @param javaTime
+     * @return
+     */
+    static public CcsdsTime fromUnix(long unixSeconds, int picoSec) {
+        int numDays = (int) (unixSeconds / SEC_IN_DAY) + NUM_DAYS_1958_1970;
+        long picoOfDay = (unixSeconds % SEC_IN_DAY) + picoSec;
+        return new CcsdsTime(numDays, picoOfDay);
     }
 
     /**

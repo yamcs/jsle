@@ -3,7 +3,6 @@ package org.yamcs.sle;
 import static org.junit.Assert.assertEquals;
 
 import java.time.Instant;
-import java.util.Date;
 
 import org.junit.Test;
 import org.yamcs.sle.CcsdsTime;
