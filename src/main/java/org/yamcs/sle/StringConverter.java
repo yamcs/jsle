@@ -9,11 +9,14 @@ import com.beanit.jasn1.ber.types.string.BerVisibleString;
 
 import ccsds.sle.transfer.service.cltu.structures.DiagnosticCltuStart;
 import ccsds.sle.transfer.service.common.types.Diagnostics;
+import ccsds.sle.transfer.service.raf.structures.DiagnosticRafStart;
 import ccsds.sle.transfer.service.service.instance.id.OidValues;
 import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceAttribute;
 import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceIdentifier;
 
 public class StringConverter {
+    
+    
     public static String toString(ServiceInstanceIdentifier sii) {
         StringBuilder sb = new StringBuilder();
         boolean first = true;
@@ -102,27 +105,24 @@ public class StringConverter {
     
     
     public static String toString(DiagnosticCltuStart dcs) {
-        StringBuilder sb = new StringBuilder();
         if (dcs.getCommon() != null) {
-            sb.append("common: ").append(toString(dcs.getCommon()));
+            return toString(dcs.getCommon());
         } else  if (dcs.getSpecific() != null) {
-            sb.append("specific: ");
-            int x = dcs.getSpecific().intValue();
-            if(x == 0) {
-                sb.append("outOfService");
-            } else if (x == 1) {
-                sb.append("unableToComply");
-            } else if (x == 1) {
-                sb.append("productionTimeExpired");
-            } else if (x == 1) {
-                sb.append("invalidCltuId");
-            }
+            return Constants.getDiagnostic(dcs.getSpecific().intValue(), Constants.CLTU_START_DIAGNOSTICS_SPECIFIC);
         } else {
-            sb.append("<none>");
+            return "unknown";
         }
-        return sb.toString();
     }
     
+    public static String toString(DiagnosticRafStart drs) {
+        if (drs.getCommon() != null) {
+            return toString(drs.getCommon());
+        } else  if (drs.getSpecific() != null) {
+            return Constants.getDiagnostic(drs.getSpecific().intValue(), Constants.RAF_START_DIAGNOSTICS_SPECIFIC);
+        } else {
+            return "unknown";
+        }
+    }
     private static String toString(Diagnostics common) {
         int x = common.intValue();
         if(x == 100) {
@@ -133,4 +133,6 @@ public class StringConverter {
             return "unknown("+x+")";
         }
     }
+
+   
 }

@@ -185,7 +185,7 @@ public class RafServiceUserHandler extends AbstractServiceUserHandler {
         ccsds.sle.transfer.service.raf.outgoing.pdus.RafStartReturn.Result r = rafStartReturn.getResult();
         if (r.getNegativeResult() != null) {
             changeState(State.READY);
-            startingCf.completeExceptionally(new SleException("failed to start", r.getNegativeResult()));
+            startingCf.completeExceptionally(new SleException("received negative result to start request: "+StringConverter.toString(r.getNegativeResult())));
         } else {
             changeState(State.ACTIVE);
             startingCf.complete(null);

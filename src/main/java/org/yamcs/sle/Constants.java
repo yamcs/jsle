@@ -32,7 +32,16 @@ public class Constants {
         BIND_DIAGNOSTIC.put(8, "out of service");
         BIND_DIAGNOSTIC.put(127, "other reason");
     }
+    
+    public final static String[] CLTU_START_DIAGNOSTICS_SPECIFIC = {
+            "outOfService", "unableToComply", "productionTimeExpired", "invalidCltuId"
+    };
+    
+    public final static String[] RAF_START_DIAGNOSTICS_SPECIFIC = {
+            "outOfService", "unableToComply", "invalidStartTime", "invalidStopTime", "missingTimeValue"
+    };
 
+    
     final static BerNull BER_NULL = new BerNull();
     final static SlduStatusNotification SLDU_NOTIFICATION_TRUE = new SlduStatusNotification(0);
     final static SlduStatusNotification SLDU_NOTIFICATION_FALSE = new SlduStatusNotification(1);
@@ -267,4 +276,13 @@ public class Constants {
             throw new IllegalArgumentException("invalid id " + id);
         }
     }
+    
+    public static String getDiagnostic(int id, String[] v) {
+        if(id >= v.length) {
+            return "unknown("+id+")";
+        } else {
+            return v[id];
+        }
+    }
+    
 }
