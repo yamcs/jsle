@@ -26,4 +26,17 @@ public class CcsdsTimeTest {
         CcsdsTime t = CcsdsTime.fromCcsds(ByteBufUtil.decodeHexDump(hex));
         assertEquals(hex, ByteBufUtil.hexDump(t.getDaySegmented()));
     }
+    
+    @Test
+    public void test3() {
+        CcsdsTime t = CcsdsTime.fromUnix(3601, 3_000_000);
+        assertEquals("1970-01-01T01:00:01.003Z", t.toString());
+    }
+    
+    @Test
+    public void test4() {
+        CcsdsTime t = CcsdsTime.fromUnix(1588711800, 1_000_000);
+        assertEquals("2020-05-05T20:50:00.001Z", t.toString());
+    }
+    
 }

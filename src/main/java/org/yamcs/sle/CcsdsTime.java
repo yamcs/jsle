@@ -1,6 +1,8 @@
 package org.yamcs.sle;
 
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 
 import ccsds.sle.transfer.service.common.types.Time;
 
@@ -8,7 +10,7 @@ import ccsds.sle.transfer.service.common.types.Time;
  * CCSDS time storing the number of days since 1958 and the number of picoseconds in the day
  * 
  */
-public class CcsdsTime {
+public class CcsdsTime implements Comparable<CcsdsTime> {
     static final int SEC_IN_DAY = 86400;
     static final int MS_IN_DAY = SEC_IN_DAY*1000;
     static final int NUM_DAYS_1958_1970 = 4383;
@@ -16,7 +18,7 @@ public class CcsdsTime {
     final private int numDays;
    
     final private long picosecInDay;
-
+    final static DateTimeFormatter formatter = new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
  
     public CcsdsTime(int numDays, long picosecInDay) {
         this.numDays = numDays;
@@ -97,14 +99,14 @@ public class CcsdsTime {
     
 
     /**
-     * Converts a UNIX time in seconds since 1970, picoseconds in second
+     * Converts a UNIX time in seconds since 1970, nanoseconds in second (such as returned by gettitmeofday)
      * 
      * @param javaTime
      * @return
      */
-    static public CcsdsTime fromUnix(long unixSeconds, int picoSec) {
+    static public CcsdsTime fromUnix(long unixSeconds, int nanosec) {
         int numDays = (int) (unixSeconds / SEC_IN_DAY) + NUM_DAYS_1958_1970;
-        long picoOfDay = (unixSeconds % SEC_IN_DAY) + picoSec;
+        long picoOfDay = (unixSeconds % SEC_IN_DAY)*1_000_000_000_000l + 1000l*nanosec;
         return new CcsdsTime(numDays, picoOfDay);
     }
 
@@ -170,7 +172,16 @@ public class CcsdsTime {
     }
     
     public String toString() {
-        return Instant.ofEpochSecond(((long) numDays - NUM_DAYS_1958_1970) * SEC_IN_DAY, picosecInDay/1000).toString();
+        return formatter.format(Instant.ofEpochSecond(((long) numDays - NUM_DAYS_1958_1970) * SEC_IN_DAY, picosecInDay/1000));
+    }
+
+    @Override
+    public int compareTo(CcsdsTime o) {
+       int x = Integer.compare(numDays, o.numDays);
+       if(x == 0) {
+           x = Long.compare(picosecInDay, o.picosecInDay);
+       }
+       return x;
     }
     
     
