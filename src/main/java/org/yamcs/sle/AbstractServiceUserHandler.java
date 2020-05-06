@@ -161,7 +161,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         monitors.forEach(m -> m.connected());
         ctx.channel().closeFuture().addListener(cf -> {
-            logger.warn("Connection closed");
+            logger.debug("Connection closed");
             notifyDisconnected();
         });
     }
