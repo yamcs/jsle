@@ -18,14 +18,14 @@ public class Isp1Handler extends ChannelDuplexHandler {
     final static byte TYPE_SLE_PDU = 1;
     final static byte TYPE_TML_CONTEXT = 2;
     final static byte TYPE_TML_HEARBEAT = 3;
-
+    final static int ISP1_PROTOCOL_ID = 0x49535031;
 
     // if true, then we send a context message when the connection is established and also start the hearbeat checker
     // if false, expect a context message to start a hearbeat sender
     final boolean initiator;
     int heartbeatInterval;
     int heartbeatDeadFactor;
-    
+
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(Isp1Handler.class);
 
     long lastMessageReceivedTime;
@@ -38,7 +38,7 @@ public class Isp1Handler extends ChannelDuplexHandler {
     public Isp1Handler(boolean initiator) {
         this(initiator, new HeartbeatSettings());
     }
-    
+
     public Isp1Handler(boolean initiator, HeartbeatSettings hbSettings) {
         this.initiator = initiator;
         this.hbSettings = hbSettings;
@@ -78,14 +78,13 @@ public class Isp1Handler extends ChannelDuplexHandler {
         } else {
             ctx.executor().schedule(() -> {
                 if (!heartbeatInitialized) {
-                    logger.debug("No context message received in {} seconds, closing the connection", hbSettings.authenticationTimeout);
+                    logger.debug("No context message received in {} seconds, closing the connection",
+                            hbSettings.authenticationTimeout);
                     ctx.channel().close();
                 }
             }, hbSettings.authenticationTimeout, TimeUnit.SECONDS);
         }
-        ctx.channel().closeFuture().addListener(cf -> {
-            heartbeatFuture.cancel(true);
-        });
+
         super.channelActive(ctx);
     }
 
@@ -116,29 +115,42 @@ public class Isp1Handler extends ChannelDuplexHandler {
     private void handleContextMessage(ChannelHandlerContext ctx, ByteBuf buf) {
         if (initiator || heartbeatInitialized) {
             logger.warn("Ignoring bogus context message");
-        } else {
-            heartbeatInterval = buf.readShort();
-            heartbeatDeadFactor = buf.readShort();
-            logger.debug("received context heartbeatInterval: {}, heartbeatDeadFactor: {}", heartbeatInterval,
-                    heartbeatDeadFactor);
-            if (heartbeatInterval == 0) {// no heartbeat required
-                heartbeatInitialized = true;
-                return;
-            }
-            if (heartbeatInterval < hbSettings.minHeartbeatInterval) {
-                logger.warn("Requested heartbeat interval {} seconds too short, closing the connection",
-                        heartbeatInterval);
-                ctx.close();
-                return;
-            }
-            if (heartbeatDeadFactor < 1 || heartbeatDeadFactor > hbSettings.maxHeartbeatDeadFactor) {
-                logger.warn("Requested heartbeat dead factor {} invalid, closing the connection", heartbeatInterval);
-                ctx.close();
-                return;
-            }
-            scheduleHeartbeats(ctx);
+            return;
         }
 
+        int protocolId = buf.readInt();
+        if (protocolId != ISP1_PROTOCOL_ID) {
+            logger.warn("Received invalid context message protocol id: {}, expected: {}", protocolId, ISP1_PROTOCOL_ID);
+            ctx.close();
+            return;
+        }
+        int versionId = buf.readInt();
+        if (versionId != 1) {
+            logger.warn("Received invalid context message version id: {}, expected: 1", versionId);
+            ctx.close();
+            return;
+        }
+        heartbeatInterval = buf.readShort();
+        heartbeatDeadFactor = buf.readShort();
+        logger.debug("received context heartbeatInterval: {}, heartbeatDeadFactor: {}", heartbeatInterval,
+                heartbeatDeadFactor);
+        if (heartbeatInterval == 0) {// no heartbeat required
+            heartbeatInitialized = true;
+            return;
+        }
+        if (heartbeatInterval < hbSettings.minHeartbeatInterval) {
+            logger.warn("Requested heartbeat interval {} seconds too short, closing the connection",
+                    heartbeatInterval);
+            ctx.close();
+            return;
+        }
+        if (heartbeatDeadFactor < 1 || heartbeatDeadFactor > hbSettings.maxHeartbeatDeadFactor) {
+            logger.warn("Requested heartbeat dead factor {} invalid, closing the connection", heartbeatDeadFactor);
+            ctx.close();
+            return;
+        }
+        heartbeatInitialized = true;
+        scheduleHeartbeats(ctx);
     }
 
     private void scheduleHeartbeats(ChannelHandlerContext ctx) {
@@ -166,7 +178,6 @@ public class Isp1Handler extends ChannelDuplexHandler {
             logger.warn("No message received in the last {} seconds, closing the connection",
                     (t - lastMessageReceivedTime) / 1000);
             ctx.close();
-            heartbeatFuture.cancel(true);
         }
     }
 
@@ -191,6 +202,13 @@ public class Isp1Handler extends ChannelDuplexHandler {
 
         // if server, wait maximum this number of seconds for the context message
         public int authenticationTimeout = 60;
+    }
+
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        super.channelInactive(ctx);
+        if (heartbeatFuture != null) {
+            heartbeatFuture.cancel(true);
+        }
     }
 
 }

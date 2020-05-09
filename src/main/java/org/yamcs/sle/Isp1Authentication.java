@@ -16,11 +16,16 @@ import com.beanit.jasn1.ber.types.string.BerVisibleString;
 import ccsds.sle.transfer.service.common.types.Credentials;
 import ccsds.sle.transfer.service.isp1.credentials.HashInput;
 import ccsds.sle.transfer.service.isp1.credentials.ISP1Credentials;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
 public class Isp1Authentication {
     public enum HashAlgorithm {
         SHA1, SHA256
     };
+
+    // this will cause passwords to be printed in the log files
+    boolean debugAuth = false;
 
     final BerVisibleString myUsername;
     final BerVisibleString peerUsername;
@@ -33,6 +38,8 @@ public class Isp1Authentication {
     // used for verifying the remote credentials, the difference in time between the received credentials and the
     // current time
     private long maxDeltaRcvTime = 10 * 60 * 1000;// 10 min
+
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(Isp1Handler.class);
 
     public Isp1Authentication(String myUsername, byte[] myPass, String peerUsername, byte[] peerPass,
             String hashAlgorithm) {
@@ -125,17 +132,20 @@ public class Isp1Authentication {
         try {
             cr.decode(new ByteArrayInputStream(bos.value));
         } catch (Exception e) {
-            e.printStackTrace();
             throw new AuthenticationException("Cannot decode provider's credentials", e);
         }
         CcsdsTime ct = CcsdsTime.fromCcsds(cr.getTime().value);
         if (System.currentTimeMillis() - ct.toJavaMillisec() > maxDeltaRcvTime) {
             throw new AuthenticationException("Received provider's credentials are too old");
         }
+        if (debugAuth) {
+            logger.debug("verifying credentials {} against ({}, {})", cr, peerUsername, peerPass);
+        }
 
         byte[] rcv = getTheProtected(peerUsername, peerPass, cr.getRandomNumber(), cr.getTime());
         if (!Arrays.equals(rcv, cr.getTheProtected().value)) {
-            throw new AuthenticationException("Received provider's credentials are not correct (hash does not match computed hash)");
+            throw new AuthenticationException(
+                    "Received provider's credentials are not correct (hash does not match computed hash)");
         }
     }
 
@@ -143,4 +153,14 @@ public class Isp1Authentication {
         return myUsername.toString();
     }
 
+    /**
+     * if set to true, authentication messages containing passwords will be logged at DEBUG level.
+     * <p>
+     * Do not forget to switch off!
+     * 
+     * @param debugAuth
+     */
+    public void debugAuth(boolean debugAuth) {
+        this.debugAuth = debugAuth;
+    }
 }

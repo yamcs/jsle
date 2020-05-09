@@ -1,4 +1,4 @@
-package org.yamcs.sle;
+package org.yamcs.sle.user;
 
 import static org.yamcs.sle.Constants.CREDENTIALS_UNUSED;
 
@@ -12,6 +12,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.beanit.jasn1.ber.BerTag;
+
+import org.yamcs.sle.AuthLevel;
+import org.yamcs.sle.Constants;
+import org.yamcs.sle.Isp1Authentication;
+import org.yamcs.sle.SleException;
+import org.yamcs.sle.SleMonitor;
+import org.yamcs.sle.State;
+import org.yamcs.sle.StringConverter;
 import org.yamcs.sle.Constants.ApplicationIdentifier;
 
 import ccsds.sle.transfer.service.bind.types.AuthorityIdentifier;
@@ -52,14 +60,6 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
  *
  */
 public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAdapter {
-    static public enum State {
-        UNBOUND, BINDING, READY, STARTING, ACTIVE, STOPPING, UNBINDING
-    };
-
-    static public enum AuthLevel {
-        NONE, BIND, ALL;
-    }
-
     final Isp1Authentication auth;
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractServiceUserHandler.class);
@@ -80,14 +80,14 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     
     final protected SleAttributes attr;
     
-    int versionNumber = 4;
+    int sleVersion = 4;
 
     public int getVersionNumber() {
-        return versionNumber;
+        return sleVersion;
     }
 
     public void setVersionNumber(int versionNumber) {
-        this.versionNumber = versionNumber;
+        this.sleVersion = versionNumber;
     }
 
     protected List<SleMonitor> monitors = new CopyOnWriteArrayList<>();
@@ -161,7 +161,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         monitors.forEach(m -> m.connected());
         ctx.channel().closeFuture().addListener(cf -> {
-            logger.debug("Connection closed");
+            logger.debug("Connection {} closed", ctx.channel().remoteAddress());
             notifyDisconnected();
         });
     }
@@ -276,12 +276,12 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
 
         sbi.setServiceInstanceIdentifier(sii);
         sbi.setResponderPortIdentifier(new PortId(attr.responderPortId.getBytes(StandardCharsets.US_ASCII)));
-        sbi.setVersionNumber(new VersionNumber(versionNumber));
+        sbi.setVersionNumber(new VersionNumber(sleVersion));
         ApplicationIdentifier appId = getApplicationIdentifier();
         sbi.setServiceType(
                 new ccsds.sle.transfer.service.bind.types.ApplicationIdentifier(appId.getId()));
         logger.info("Sending bind request serviceInstanceIdentifier: {}, versionNumber: {}, appId: {}",
-                StringConverter.toString(sii), versionNumber, appId);
+                StringConverter.toString(sii), sleVersion, appId);
         utp.setRafBindInvocation(sbi);
         channelHandlerContext.writeAndFlush(utp);
     }
@@ -306,12 +306,13 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
 
     protected void processBindInvocation(SleBindInvocation bindInvocation) {
         verifyBindCredentials(bindInvocation.getInvokerCredentials());
-        // TODO
+        logger.debug("ignoring bind invocation {}", bindInvocation);
+        
     }
 
     protected void processUnbindInvocation(SleUnbindInvocation unbindInvocation) {
         verifyNonBindCredentials(unbindInvocation.getInvokerCredentials());
-        // TODO
+        logger.debug("ignoring unbind invocation {}", unbindInvocation);
     }
 
     private void sendStop(CompletableFuture<Void> cf) {
@@ -454,29 +455,15 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        monitors.forEach(m -> m.exceptionCaught(cause));
         logger.warn("Caught exception {}", cause.getMessage());
+        monitors.forEach(m -> m.exceptionCaught(cause));
     }
 
     protected void notifyDisconnected() {
         monitors.forEach(m -> m.disconnected());
     }
 
-    protected static ConditionalTime getConditionalTime(CcsdsTime time) {
-        if (time != null) {
-            ConditionalTime ct = new ConditionalTime();
-            ct.setKnown(getTime(time));
-            return ct;
-        } else {
-            return Constants.COND_TIME_UNDEFINED;
-        }
-    }
-
-    static protected Time getTime(CcsdsTime time) {
-        Time t = new Time();
-        t.setCcsdsFormat(new TimeCCSDS(time.getDaySegmented()));
-        return t;
-    }
+    
 
     protected abstract ApplicationIdentifier getApplicationIdentifier();
 

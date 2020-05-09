@@ -32,25 +32,29 @@ public class Constants {
         BIND_DIAGNOSTIC.put(8, "out of service");
         BIND_DIAGNOSTIC.put(127, "other reason");
     }
-    
+
     public final static String[] CLTU_START_DIAGNOSTICS_SPECIFIC = {
             "outOfService", "unableToComply", "productionTimeExpired", "invalidCltuId"
     };
-    
+
     public final static String[] RAF_START_DIAGNOSTICS_SPECIFIC = {
             "outOfService", "unableToComply", "invalidStartTime", "invalidStopTime", "missingTimeValue"
     };
+    public final static String[] CLTU_TRANSFER_DIAGNOSTICS_SPECIFIC = {
+       "unableToProcess", "unableToStore", "outOfSequence", "inconsistentTimeRange", "invalidTime", "lateSldu", "invalidDelayTime", "cltuError"
+    };
 
     
-    final static BerNull BER_NULL = new BerNull();
-    final static SlduStatusNotification SLDU_NOTIFICATION_TRUE = new SlduStatusNotification(0);
-    final static SlduStatusNotification SLDU_NOTIFICATION_FALSE = new SlduStatusNotification(1);
+    public final static BerNull BER_NULL = new BerNull();
+    public final static SlduStatusNotification SLDU_NOTIFICATION_TRUE = new SlduStatusNotification(0);
+    public final static SlduStatusNotification SLDU_NOTIFICATION_FALSE = new SlduStatusNotification(1);
+
     public final static ConditionalTime COND_TIME_UNDEFINED = new ConditionalTime();
     static {
         COND_TIME_UNDEFINED.setUndefined(BER_NULL);
     }
 
-    final static Credentials CREDENTIALS_UNUSED = new Credentials();
+    public final static Credentials CREDENTIALS_UNUSED = new Credentials();
     static {
         CREDENTIALS_UNUSED.setUnused(BER_NULL);
     }
@@ -111,6 +115,7 @@ public class Constants {
         }
     }
 
+   
     public static enum ParameterName {
         acquisitionSequenceLength(201), apidList(2), bitLockRequired(3), blockingTimeoutPeriod(0), blockingUsage(1),
         //
@@ -159,7 +164,6 @@ public class Constants {
             throw new IllegalArgumentException("invalid id " + id);
         }
     }
-
 
     public static class FrameQuality {
         static final int good = 0;
@@ -233,6 +237,29 @@ public class Constants {
         }
     }
 
+    public static enum ForwardDuStatus {
+        radiated(0), expired(1), interrupted(2), acknowledged(3), productionStarted(4), productionNotStarted(
+                5), unsupportedTransmissionMode(6);
+        private final int id;
+
+        private ForwardDuStatus(int id) {
+            this.id = id;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        static public ForwardDuStatus byId(int id) {
+            for (ForwardDuStatus v : values()) {
+                if (v.id == id) {
+                    return v;
+                }
+            }
+            throw new IllegalArgumentException("invalid id " + id);
+        }
+    }
+
     public static enum UplinkStatus {
         uplinkStatusNotAvailable(0), noRfAvailable(1), noBitLock(2), nominal(3);
         private final int id;
@@ -276,13 +303,13 @@ public class Constants {
             throw new IllegalArgumentException("invalid id " + id);
         }
     }
-    
+
     public static String getDiagnostic(int id, String[] v) {
-        if(id >= v.length) {
-            return "unknown("+id+")";
+        if (id >= v.length) {
+            return "unknown(" + id + ")";
         } else {
             return v[id];
         }
     }
-    
+
 }

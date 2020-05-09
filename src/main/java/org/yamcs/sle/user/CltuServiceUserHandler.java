@@ -1,9 +1,18 @@
-package org.yamcs.sle;
+package org.yamcs.sle.user;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import org.yamcs.sle.CcsdsTime;
+import org.yamcs.sle.Constants;
+import org.yamcs.sle.Isp1Authentication;
+import org.yamcs.sle.SleException;
+import org.yamcs.sle.State;
+import org.yamcs.sle.StringConverter;
+import org.yamcs.sle.Constants.ApplicationIdentifier;
+import org.yamcs.sle.Constants.ParameterName;
 
 import com.beanit.jasn1.ber.BerTag;
 import com.beanit.jasn1.ber.types.BerOctetString;
@@ -168,7 +177,7 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
             processStatusReportInvocation(cltuStatusReportInvocation);
         } else {
             logger.warn("Unexpected state berTag: {} ", berTag);
-            throw new IllegalStateException();
+            throw new IllegalStateException("Unexpected message berTag: "+berTag);
         }
     }
 
@@ -180,8 +189,8 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         ctdi.setInvokeId(getInvokeId());
 
         ctdi.setCltuIdentification(new CltuIdentification(cltuId));
-        ctdi.setEarliestTransmissionTime(getConditionalTime(earliestTransmissionTime));
-        ctdi.setLatestTransmissionTime(getConditionalTime(latestTransmissionTime));
+        ctdi.setEarliestTransmissionTime(CcsdsTime.toSleConditional(earliestTransmissionTime, sleVersion));
+        ctdi.setLatestTransmissionTime(CcsdsTime.toSleConditional(latestTransmissionTime, sleVersion));
         ctdi.setDelayTime(new Duration(delayMicrosec));
         ctdi.setSlduRadiationNotification(produceReport ? SLDU_NOTIFICATION_TRUE : SLDU_NOTIFICATION_FALSE);
         ctdi.setCltuData(new CltuData(cltu));

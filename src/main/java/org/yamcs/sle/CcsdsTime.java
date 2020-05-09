@@ -4,22 +4,25 @@ import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 
+import ccsds.sle.transfer.service.common.types.ConditionalTime;
 import ccsds.sle.transfer.service.common.types.Time;
+import ccsds.sle.transfer.service.common.types.TimeCCSDS;
+import ccsds.sle.transfer.service.common.types.TimeCCSDSpico;
 
 /**
  * CCSDS time storing the number of days since 1958 and the number of picoseconds in the day
  * 
  */
 public class CcsdsTime implements Comparable<CcsdsTime> {
-    static final int SEC_IN_DAY = 86400;
-    static final int MS_IN_DAY = SEC_IN_DAY*1000;
+    static public final int SEC_IN_DAY = 86400;
+    static public final int MS_IN_DAY = SEC_IN_DAY * 1000;
     static final int NUM_DAYS_1958_1970 = 4383;
 
     final private int numDays;
-   
+
     final private long picosecInDay;
     final static DateTimeFormatter formatter = new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
- 
+
     public CcsdsTime(int numDays, long picosecInDay) {
         this.numDays = numDays;
         this.picosecInDay = picosecInDay;
@@ -78,11 +81,10 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
     /**
      * Gets the current time
      * 
-     * @return
+     * @return the current time
      */
     static public CcsdsTime now() {
         return fromJavaMillisec(System.currentTimeMillis());
-       // return fromJavaMillisec(1000*(System.currentTimeMillis()/1000));
     }
 
     /**
@@ -96,7 +98,6 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
         int msOfDay = (int) (javaTime % MS_IN_DAY);
         return new CcsdsTime(numDays, 1000_000_000L * msOfDay);
     }
-    
 
     /**
      * Converts a UNIX time in seconds since 1970, nanoseconds in second (such as returned by gettitmeofday)
@@ -106,8 +107,81 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
      */
     static public CcsdsTime fromUnix(long unixSeconds, int nanosec) {
         int numDays = (int) (unixSeconds / SEC_IN_DAY) + NUM_DAYS_1958_1970;
-        long picoOfDay = (unixSeconds % SEC_IN_DAY)*1_000_000_000_000l + 1000l*nanosec;
+        long picoOfDay = (unixSeconds % SEC_IN_DAY) * 1_000_000_000_000l + 1000l * nanosec;
         return new CcsdsTime(numDays, picoOfDay);
+    }
+
+    /**
+     * P-field is implicit (not present, defaulted to 41 hex)
+     * <p>
+     * T-field:
+     * <ul>
+     * <li>2 octets: number of days since 1958/01/01 00:00:00</li>
+     * <li>4 octets: number of milliseconds of the day</li>
+     * <li>2 octets: number of microseconds of the millisecond
+     * (set to 0 if not used)</li>
+     * </ul>
+     **/
+    public byte[] getDaySegmented() {
+        byte[] r = new byte[8];
+        long microsec = picosecInDay / 1000_000;
+        long msOfDay = microsec / 1000;
+        long microsecOfSec = microsec % 1000;
+
+        r[0] = (byte) (numDays >> 8);
+        r[1] = (byte) (numDays);
+        r[2] = (byte) (msOfDay >> 24);
+        r[3] = (byte) (msOfDay >> 16);
+        r[4] = (byte) (msOfDay >> 8);
+        r[5] = (byte) (msOfDay);
+        r[6] = (byte) (microsecOfSec >> 8);
+        r[7] = (byte) (microsecOfSec);
+
+        return r;
+    }
+
+    /**
+     * P-field is implicit (not present, defaulted to 41 hex)
+     * <p>
+     * T-field:
+     * <ul>
+     * T-field:
+     * <ul>
+     * <li>2 octets: number of days since 1958/01/01 00:00:00</li>
+     * <li>4 octets: number of milliseconds of the day</li>
+     * <li>4 octets: number of picoseconds of the millisecond
+     * (set to 0 if not used)</li>
+     * </ul>
+     **/
+    public byte[] getDaySegmentedPico() {
+        byte[] r = new byte[10];
+        long msOfDay = picosecInDay / 1000_000_000;
+        long picoOfMillisec = picosecInDay % 1000_000;
+
+        r[0] = (byte) (numDays >> 8);
+        r[1] = (byte) (numDays);
+        r[2] = (byte) (msOfDay >> 24);
+        r[3] = (byte) (msOfDay >> 16);
+        r[4] = (byte) (msOfDay >> 8);
+        r[5] = (byte) (msOfDay);
+        r[6] = (byte) (picoOfMillisec >> 24);
+        r[7] = (byte) (picoOfMillisec >> 16);
+        r[8] = (byte) (picoOfMillisec >> 8);
+        r[9] = (byte) (picoOfMillisec);
+
+        return r;
+    }
+
+    public long getPicosecInDay() {
+        return picosecInDay;
+    }
+
+    public int getNumDays() {
+        return numDays;
+    }
+
+    public Time toSle(int sleVersion) {
+        return toSle(this, sleVersion);
     }
 
     /**
@@ -126,63 +200,54 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
         }
     }
 
-    /**
-     * P-field is implicit (not present, defaulted to 41 hex)
-     * <p>
-     * T-field:
-     * <ul>
-     * <li>2 octets: number of days since 1958/01/01 00:00:00</li>
-     * <li>4 octets: number of milliseconds of the day</li>
-     * <li>2 octets: number of microseconds of the millisecond
-     * (set to 0 if not used)</li>
-     * </ul>
-     **/
-    public byte[] getDaySegmented() {
-        byte[] r = new byte[8];
-        long microsec = picosecInDay/1000_000;
-        long msOfDay = microsec / 1000;
-        long microsecOfSec = microsec % 1000;
-        
-        r[0] = (byte) (numDays >> 8);
-        r[1] = (byte) (numDays);
-        r[2] = (byte) (msOfDay >> 24);
-        r[3] = (byte) (msOfDay >> 16);
-        r[4] = (byte) (msOfDay >> 8);
-        r[5] = (byte) (msOfDay);
-        r[6] = (byte) (microsecOfSec >> 8);
-        r[7] = (byte) (microsecOfSec);
-
-        return r;
+    public static CcsdsTime fromSle(ConditionalTime time) {
+        if (time.getKnown() == null) {
+            return null;
+        } else {
+            return fromSle(time.getKnown());
+        }
     }
 
-    public long getPicosecInDay() {
-        return picosecInDay;
+    public static Time toSle(CcsdsTime time, int sleVersion) {
+        Time t = new Time();
+        if (sleVersion > 2) {
+            t.setCcsdsFormat(new TimeCCSDS(time.getDaySegmented()));
+        } else {
+            t.setCcsdsPicoFormat(new TimeCCSDSpico(time.getDaySegmentedPico()));
+        }
+        return t;
     }
-    public int getNumDays() {
-        return numDays;
+
+    public static ConditionalTime toSleConditional(CcsdsTime time, int sleVersion) {
+        if (time != null) {
+            ConditionalTime ct = new ConditionalTime();
+            ct.setKnown(toSle(time, sleVersion));
+            return ct;
+        } else {
+            return Constants.COND_TIME_UNDEFINED;
+        }
     }
 
     /**
      * Converts to java milliseconds. Note: this loses precision.
      * 
-     * @return the java milliseconds since 1970. 
+     * @return the java milliseconds since 1970.
      */
     public long toJavaMillisec() {
         return ((long) numDays - NUM_DAYS_1958_1970) * MS_IN_DAY + picosecInDay / 1000_000_000;
     }
-    
+
     public String toString() {
-        return formatter.format(Instant.ofEpochSecond(((long) numDays - NUM_DAYS_1958_1970) * SEC_IN_DAY, picosecInDay/1000));
+        return formatter
+                .format(Instant.ofEpochSecond(((long) numDays - NUM_DAYS_1958_1970) * SEC_IN_DAY, picosecInDay / 1000));
     }
 
     @Override
     public int compareTo(CcsdsTime o) {
-       int x = Integer.compare(numDays, o.numDays);
-       if(x == 0) {
-           x = Long.compare(picosecInDay, o.picosecInDay);
-       }
-       return x;
+        int x = Integer.compare(numDays, o.numDays);
+        if (x == 0) {
+            x = Long.compare(picosecInDay, o.picosecInDay);
+        }
+        return x;
     }
-    
-    
 }

@@ -1,4 +1,6 @@
-package org.yamcs.sle;
+package org.yamcs.sle.user;
+
+import org.yamcs.sle.SleMonitor;
 
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuAsyncNotifyInvocation;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuStatusReportInvocation;

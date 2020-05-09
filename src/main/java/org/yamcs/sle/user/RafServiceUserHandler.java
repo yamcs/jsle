@@ -1,11 +1,24 @@
-package org.yamcs.sle;
+package org.yamcs.sle.user;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
 
 import com.beanit.jasn1.ber.BerTag;
+
+import org.yamcs.sle.CcsdsTime;
+import org.yamcs.sle.Constants;
+import org.yamcs.sle.Isp1Authentication;
+import org.yamcs.sle.RafSleMonitor;
+import org.yamcs.sle.SleException;
+import org.yamcs.sle.State;
+import org.yamcs.sle.StringConverter;
+import org.yamcs.sle.Constants.ApplicationIdentifier;
+import org.yamcs.sle.Constants.DeliveryMode;
+import org.yamcs.sle.Constants.LockStatus;
 import org.yamcs.sle.Constants.ParameterName;
+import org.yamcs.sle.Constants.RafProductionStatus;
+import org.yamcs.sle.Constants.RequestedFrameQuality;
 
 import ccsds.sle.transfer.service.common.types.InvokeId;
 import ccsds.sle.transfer.service.raf.incoming.pdus.RafGetParameterInvocation;
@@ -24,8 +37,6 @@ import ccsds.sle.transfer.service.raf.structures.RafGetParameter;
 import ccsds.sle.transfer.service.raf.structures.RafParameterName;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-
-import static org.yamcs.sle.Constants.*;
 
 /**
  * Implementation for the CCSDS RECOMMENDED STANDARD FOR SLE RAF SERVICE
@@ -165,8 +176,8 @@ public class RafServiceUserHandler extends AbstractServiceUserHandler {
         rsi.setRequestedFrameQuality(
                 new ccsds.sle.transfer.service.raf.structures.RequestedFrameQuality(requestedFrameQuality.getId()));
         rsi.setInvokeId(new InvokeId(1));
-        rsi.setStartTime(getConditionalTime(start));
-        rsi.setStopTime(getConditionalTime(stop));
+        rsi.setStartTime(CcsdsTime.toSleConditional(start, sleVersion));
+        rsi.setStopTime(CcsdsTime.toSleConditional(stop, sleVersion));
         
         rsi.setInvokerCredentials(getNonBindCredentials());
 

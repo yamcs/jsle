@@ -1,5 +1,6 @@
-package org.yamcs.sle;
+package org.yamcs.sle.user;
 
+import org.yamcs.sle.CcsdsTime;
 import org.yamcs.sle.Constants.LockStatus;
 import org.yamcs.sle.Constants.RafProductionStatus;
 

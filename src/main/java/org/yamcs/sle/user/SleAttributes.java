@@ -1,4 +1,4 @@
-package org.yamcs.sle;
+package org.yamcs.sle.user;
 
 /**
  * Common attributes required for specifying the SLE services and doing a connection
@@ -7,9 +7,10 @@ package org.yamcs.sle;
  *
  */
 public class SleAttributes {
-    final String responderPortId;
-    final String initiatorId;
-    final String serviceInstance;
+    public final String responderPortId;
+    public final String initiatorId;
+    public final String serviceInstance;
+   
     
     public SleAttributes(String responderPortId, String initiatorId, String serviceInstance) {
         this.responderPortId = responderPortId;

@@ -19,7 +19,7 @@ public interface SleMonitor {
      * Called when the state changes
      * @param newState
      */
-    public void stateChanged(AbstractServiceUserHandler.State newState);
+    public void stateChanged(State newState);
     
     /**
      * Called when an exception is encountered
