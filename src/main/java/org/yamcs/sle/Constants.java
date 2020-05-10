@@ -166,9 +166,9 @@ public class Constants {
     }
 
     public static class FrameQuality {
-        static final int good = 0;
-        static final int erred = 1;
-        static final int undetermined = 2;
+        public static final int good = 0;
+        public static final int erred = 1;
+        public static final int undetermined = 2;
     }
 
     public static enum RafProductionStatus {

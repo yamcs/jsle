@@ -15,8 +15,6 @@ import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceAttribute;
 import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceIdentifier;
 
 public class StringConverter {
-    
-    
     public static String toString(ServiceInstanceIdentifier sii) {
         StringBuilder sb = new StringBuilder();
         boolean first = true;

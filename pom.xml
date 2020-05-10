@@ -35,10 +35,6 @@
 			<name>Fabian Diet</name>
 		</developer>
 		<developer>
-			<id>m-sc</id>
-			<name>Mathieu Schmitt</name>
-		</developer>
-		<developer>
 			<id>xpromache</id>
 			<name>Nicolae Mihalache</name>
 		</developer>
@@ -142,7 +138,11 @@
 				<artifactId>exec-maven-plugin</artifactId>
 				<version>1.2.1</version>
 				<configuration>
-					<mainClass>org.yamcs.sle.udpslebridge.UdpSleBridge</mainClass>
+					<mainClass>org.yamcs.sle.udpslebridge.SleUdpBridge</mainClass>
+                                        <arguments>
+                                             <argument>-c</argument>
+                                             <argument>bridge.properties</argument>
+                                        </arguments>
 				</configuration>
 			</plugin>
 		</plugins>

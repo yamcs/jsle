@@ -1,14 +1,14 @@
 package org.yamcs.sle;
 
-import org.yamcs.sle.AbstractServiceUserHandler.State;
 import org.yamcs.sle.CcsdsTime;
 import org.yamcs.sle.Constants.DeliveryMode;
 import org.yamcs.sle.Constants.LockStatus;
 import org.yamcs.sle.Constants.RafProductionStatus;
-import org.yamcs.sle.FrameConsumer;
+import org.yamcs.sle.user.FrameConsumer;
+import org.yamcs.sle.user.RafServiceUserHandler;
+import org.yamcs.sle.user.SleAttributes;
 import org.yamcs.sle.Isp1Authentication;
 import org.yamcs.sle.Isp1Handler;
-import org.yamcs.sle.RafServiceUserHandler;
 import org.yamcs.sle.RafSleMonitor;
 
 import ccsds.sle.transfer.service.raf.outgoing.pdus.RafStatusReportInvocation;
@@ -34,11 +34,12 @@ public class RafTest {
 
         Isp1Authentication isp1Authentication = new Isp1Authentication("mertens",
                 ByteBufUtil.decodeHexDump("000102030405060708090a0b0c0d0e0f"),
-                "proxy", ByteBufUtil.decodeHexDump("AB0102030405060708090a0b0c0d0e0f"), "SHA-1");
+                "jsle-bridge", ByteBufUtil.decodeHexDump("AB0102030405060708090a0b0c0d0e0f"), "SHA-1");
         MyConsumer c = new MyConsumer();
         SleAttributes attr = new SleAttributes(responderPortId, initiatorId, "sagr=SAGR.spack=SPACK.rsl-fg=RSL-FG.raf=onlt1");
         RafServiceUserHandler rsuh = new RafServiceUserHandler(isp1Authentication, attr,  DeliveryMode.rtnTimelyOnline, c);
-
+        rsuh.setAuthLevel(AuthLevel.BIND);
+        
         MyMonitor m = new MyMonitor();
         rsuh.addMonitor(m);
 

@@ -2,10 +2,11 @@ package org.yamcs.sle;
 
 
 
-import org.yamcs.sle.AbstractServiceUserHandler.State;
-import org.yamcs.sle.CltuServiceUserHandler;
 import org.yamcs.sle.Isp1Authentication;
 import org.yamcs.sle.Isp1Handler;
+import org.yamcs.sle.user.CltuServiceUserHandler;
+import org.yamcs.sle.user.CltuSleMonitor;
+import org.yamcs.sle.user.SleAttributes;
 
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuAsyncNotifyInvocation;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuStatusReportInvocation;
@@ -30,11 +31,12 @@ public class CltuTest {
         final String initiatorId = "mertens";
         
         Isp1Authentication isp1Authentication = new Isp1Authentication(initiatorId, ByteBufUtil.decodeHexDump("000102030405060708090a0b0c0d0e0f"),
-                "proxy", ByteBufUtil.decodeHexDump("AB0102030405060708090a0b0c0d0e0f"), "SHA-1");
+                "jsle-bridge", ByteBufUtil.decodeHexDump("AB0102030405060708090a0b0c0d0e0f"), "SHA-1");
         
         SleAttributes attr = new SleAttributes(responderPortId, initiatorId, "sagr=SAGR.spack=SPACK.fsl-fg=FSL-FG.cltu=cltu1");
         CltuServiceUserHandler csuh = new CltuServiceUserHandler(isp1Authentication, attr);
         csuh.addMonitor(new MyMonitor());
+        csuh.setAuthLevel(AuthLevel.BIND);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
             Bootstrap b = new Bootstrap();
@@ -56,6 +58,10 @@ public class CltuTest {
            ChannelFuture f = b.connect(host, port).sync();
            csuh.bind().get();
            System.out.println("yuhuu bound");
+           
+           csuh.schedulePeriodicStatusReport(10);
+           Thread.sleep(100000);
+           
            csuh.start().get();
            System.out.println("yuhuu started");
            
@@ -134,7 +140,7 @@ public class CltuTest {
 
         @Override
         public void exceptionCaught(Throwable t) {
-            System.out.println("MyMonitor: exceptionCaught: "+t);
+            t.printStackTrace();
         }
 
         @Override

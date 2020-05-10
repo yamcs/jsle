@@ -8,9 +8,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.yamcs.sle.CcsdsTime;
-import org.yamcs.sle.Isp1Authentication;
 import org.yamcs.sle.State;
-import org.yamcs.sle.provider.CltuConsumer.UplinkResult;
+import org.yamcs.sle.provider.CltuUplinker.UplinkResult;
 
 import com.beanit.jasn1.ber.BerTag;
 import com.beanit.jasn1.ber.types.BerInteger;
@@ -41,7 +40,7 @@ import ccsds.sle.transfer.service.cltu.structures.ProductionStatus;
 import ccsds.sle.transfer.service.common.pdus.SleAcknowledgement;
 import ccsds.sle.transfer.service.common.pdus.SleStopInvocation;
 import ccsds.sle.transfer.service.common.types.Diagnostics;
-import io.netty.channel.ChannelHandlerContext;
+import ccsds.sle.transfer.service.common.types.InvokeId;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
@@ -51,34 +50,56 @@ import static org.yamcs.sle.Constants.*;
  * Implementation for the
  * CCSDS RECOMMENDED STANDARD FOR SLE FCLTU SERVICE
  * CCSDS 912.1-B-4 August 2016
- * 
+ * <p>
  * https://public.ccsds.org/Pubs/912x1b4.pdf
+ * 
+ * <p>
+ * 
+ * This class implements queueing for CLTUs and it relies on a {@link CltuUplinker} to uplink the CLTUs one by one.
+ * 
+ * <p>
+ * Due to the java 8 limitations the uplink of the timed CLTUs (those with a defined earliestTransmissionTime) is not
+ * very precise - with the current implementation it will be probably sent 1-2 milliseconds later than the time specified.
+ * If better precision is required, this has to be changed to send the CLTU a few milliseconds in
+ * advance together with the time and the {@link CltuUplinker} should take care of the exact transmission start.
+ * <p>
+ * In any case the {@link CltuUplinker} has to return the time when the CLTU has been eventually radiated.
  * 
  * @author nm
  *
  */
-public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(CltuServiceProviderHandler.class);
+public class CltuServiceProvider implements SleService {
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(CltuServiceProvider.class);
 
-    CltuConsumer cltuConsumer;
-    private final CltuStatusReport cltuStatusReport = new CltuStatusReport();
+    CltuUplinker cltuUplinker;
+    private final CltuServiceState cltuStatusReport = new CltuServiceState();
 
     PriorityQueue<TimedQueuedCltu> timedCltus = new PriorityQueue<TimedQueuedCltu>();
     BlockingQueue<QueuedCltu> cltus = new LinkedBlockingQueue<QueuedCltu>();
     private long minimumDelayTimeMicrosec;
 
     int expectedCltuId;
+    State state;
 
-    final static QueuedCltu SIGNAL_QC = new QueuedCltu();
+    final static QueuedCltu SIGNAL_TQC = new QueuedCltu();
+    SleProvider sleProvider;
 
     Thread queueRunner;
+    int sleVersion;
 
-    public CltuServiceProviderHandler(Isp1Authentication auth, SleAttributes attr, CltuConsumer cltuConsumer) {
-        super(auth, attr);
-        this.cltuConsumer = cltuConsumer;
+    public CltuServiceProvider(CltuUplinker cltuUplinker) {
+        this.cltuUplinker = cltuUplinker;
     }
 
-    protected void processData(BerTag berTag, InputStream is) throws IOException {
+    @Override
+    public void init(SleProvider server) {
+        this.sleProvider = server;
+        this.sleVersion = server.getVersionNumber();
+        this.state = State.READY;
+    }
+
+    @Override
+    public void processData(BerTag berTag, InputStream is) throws IOException {
         if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 10)) {
             CltuTransferDataInvocation cltuTransferDataInvocation = new CltuTransferDataInvocation();
             cltuTransferDataInvocation.decode(is, false);
@@ -95,6 +116,10 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
             CltuThrowEventInvocation cltuThrowEventInvocation = new CltuThrowEventInvocation();
             cltuThrowEventInvocation.decode(is, false);
             processThrowEventInvocation(cltuThrowEventInvocation);
+        } else if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 2)) {
+            SleStopInvocation sleStopInvocation = new SleStopInvocation();
+            sleStopInvocation.decode(is, false);
+            processSleStopInvocation(sleStopInvocation);
         } else {
             logger.warn("Unexpected berTag: {} ", berTag);
             throw new IllegalStateException("Unexpected berTag: " + berTag);
@@ -103,40 +128,58 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
 
     private void processStartInvocation(CltuStartInvocation cltuStartInvocation) {
         logger.debug("Received CltuStartInvocation {}", cltuStartInvocation);
-        CltuStartReturn.Result r = new CltuStartReturn.Result();
-
         if (state != State.READY) {
             logger.warn("wrong state {} for start invocation", state);
-            DiagnosticCltuStart dcs = new DiagnosticCltuStart();
-            dcs.setSpecific(new BerInteger(1));
-            r.setNegativeResult(dcs);
-        } else {
-            state = State.ACTIVE;
-            CltuStartReturn.Result.PositiveResult pr = new CltuStartReturn.Result.PositiveResult();
-            pr.setStartRadiationTime(CcsdsTime.toSle(CcsdsTime.now(), sleVersion));
-            pr.setStopRadiationTime(COND_TIME_UNDEFINED);
-            r.setPositiveResult(pr);
-            expectedCltuId = cltuStartInvocation.getFirstCltuIdentification().intValue();
-            queueRunner = new Thread(() -> runUplinkQueue());
-            queueRunner.start();
-        }
+            sendNegativeStartReturn(cltuStartInvocation.getInvokeId(), 1);
+            return;
+        } 
+        int x = cltuUplinker.start();
+        if(x>0) {
+            logger.warn("Cltu uplinker returned error {}", x);
+            sendNegativeStartReturn(cltuStartInvocation.getInvokeId(), 1);
+            return;
+        } 
+        
+        state = State.ACTIVE;
+        CltuStartReturn.Result.PositiveResult pr = new CltuStartReturn.Result.PositiveResult();
+        pr.setStartRadiationTime(CcsdsTime.toSle(CcsdsTime.now(), sleVersion));
+        pr.setStopRadiationTime(COND_TIME_UNDEFINED);
+        
+        CltuStartReturn.Result r = new CltuStartReturn.Result();
+        r.setPositiveResult(pr);
+        expectedCltuId = cltuStartInvocation.getFirstCltuIdentification().intValue();
+        queueRunner = new Thread(() -> runUplinkQueue());
+        queueRunner.start();
 
         CltuStartReturn csr = new CltuStartReturn();
         csr.setResult(r);
         csr.setInvokeId(cltuStartInvocation.getInvokeId());
-        csr.setPerformerCredentials(getNonBindCredentials());
+        csr.setPerformerCredentials(sleProvider.getNonBindCredentials());
 
         logger.debug("Sending CltuStartReturn {}", csr);
         CltuProviderToUserPdu cptu = new CltuProviderToUserPdu();
         cptu.setCltuStartReturn(csr);
-        channelHandlerContext.writeAndFlush(cptu);
+        sleProvider.sendMessage(cptu);
     }
 
-   
+    private void sendNegativeStartReturn(InvokeId invokeId, int diagnostic) {
+        DiagnosticCltuStart dcs = new DiagnosticCltuStart();
+        dcs.setSpecific(new BerInteger(diagnostic));
 
+        CltuStartReturn.Result r = new CltuStartReturn.Result();
+        r.setNegativeResult(dcs);
+        CltuStartReturn csr = new CltuStartReturn();
+        csr.setResult(r);
+        csr.setInvokeId(invokeId);
+        
+        CltuProviderToUserPdu cptu = new CltuProviderToUserPdu();
+        cptu.setCltuStartReturn(csr);
+        sleProvider.sendMessage(cptu);
+    }
+    
     private void processTransferDataInvocation(CltuTransferDataInvocation cltuTransferDataInvocation) {
         logger.debug("Received CltuTransferDataInvocation {}", cltuTransferDataInvocation);
-        verifyNonBindCredentials(cltuTransferDataInvocation.getInvokerCredentials());
+        sleProvider.verifyNonBindCredentials(cltuTransferDataInvocation.getInvokerCredentials());
         CcsdsTime ett = CcsdsTime.fromSle(cltuTransferDataInvocation.getEarliestTransmissionTime());
         QueuedCltu qc = (ett == null) ? new QueuedCltu() : new TimedQueuedCltu(ett);
         CcsdsTime now = CcsdsTime.now();
@@ -164,7 +207,7 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
         }
 
         CltuTransferDataReturn ctdr = new CltuTransferDataReturn();
-        ctdr.setPerformerCredentials(getNonBindCredentials());
+        ctdr.setPerformerCredentials(sleProvider.getNonBindCredentials());
         ctdr.setInvokeId(cltuTransferDataInvocation.getInvokeId());
         ctdr.setCltuBufferAvailable(new BufferSize(cltuStatusReport.cltuBufferAvailable));
 
@@ -173,7 +216,7 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
             r.setPositiveResult(BER_NULL);
             if (qc instanceof TimedQueuedCltu) {
                 timedCltus.add((TimedQueuedCltu) qc);
-                cltus.add(SIGNAL_QC); // to wake up the thread
+                cltus.add(SIGNAL_TQC); // to wake up the thread
             } else {
                 cltus.add(qc);
             }
@@ -188,16 +231,14 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
         logger.debug("Sending CltuTransferDataReturn {}", ctdr);
         CltuProviderToUserPdu cptu = new CltuProviderToUserPdu();
         cptu.setCltuTransferDataReturn(ctdr);
-        channelHandlerContext.writeAndFlush(cptu);
+        sleProvider.sendMessage(cptu);
     }
 
-  
-    @Override
     protected void processSleStopInvocation(SleStopInvocation sleStopInvocation) {
         logger.debug("Received SleStopInvocation {}", sleStopInvocation);
         SleAcknowledgement ack = new SleAcknowledgement();
 
-        ack.setCredentials(getNonBindCredentials());
+        ack.setCredentials(sleProvider.getNonBindCredentials());
         ack.setInvokeId(sleStopInvocation.getInvokeId());
         SleAcknowledgement.Result result = new SleAcknowledgement.Result();
         if (state == State.ACTIVE) {
@@ -212,9 +253,8 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
         ack.setResult(result);
         CltuProviderToUserPdu cptu = new CltuProviderToUserPdu();
         cptu.setCltuStopReturn(ack);
-        channelHandlerContext.writeAndFlush(cptu);
+        sleProvider.sendMessage(cptu);
     }
-
 
     private void processThrowEventInvocation(CltuThrowEventInvocation cltuThrowEventInvocation) {
         logger.debug("Received CltuThrowEventInvocation {}", cltuThrowEventInvocation);
@@ -224,7 +264,7 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
     private void processGetParameterInvocation(CltuGetParameterInvocation cltuGetParameterInvocation) {
         logger.debug("Received CltuGetParameterInvocation {}", cltuGetParameterInvocation);
     }
-    
+
     /**
      * Called when a CLTU has been radiated
      * 
@@ -234,31 +274,29 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
      *            - can be null of the cltu has not been successfully radiated
      * @param cltuStatus
      */
-    public void cltuRadiated(QueuedCltu qc, UplinkResult ur) {
-        channelHandlerContext.executor().execute(() -> {
-            cltuStatusReport.cltuLastProcessedId = qc.cltuId;
-            cltuStatusReport.cltuLastProcessedRadiationTime = ur.startTime;
-            cltuStatusReport.cltuLastProcesseStatus = ur.cltuStatus;
-            cltuStatusReport.numCltuProcessed++;
+    private void cltuRadiated(QueuedCltu qc, UplinkResult ur) {
+        cltuStatusReport.cltuLastProcessedId = qc.cltuId;
+        cltuStatusReport.cltuLastProcessedRadiationTime = ur.startTime;
+        cltuStatusReport.cltuLastProcesseStatus = ur.cltuStatus;
+        cltuStatusReport.numCltuProcessed++;
 
-            if (ur.cltuStatus == ForwardDuStatus.radiated) {
-                cltuStatusReport.cltuLastOkId = qc.cltuId;
-                cltuStatusReport.cltuLastOkTime = ur.stopTime;
-                cltuStatusReport.numCltuRadiated++;
-            }
-            cltuStatusReport.cltuBufferAvailable += qc.cltuData.length;
+        if (ur.cltuStatus == ForwardDuStatus.radiated) {
+            cltuStatusReport.cltuLastOkId = qc.cltuId;
+            cltuStatusReport.cltuLastOkTime = ur.stopTime;
+            cltuStatusReport.numCltuRadiated++;
+        }
+        cltuStatusReport.cltuBufferAvailable += qc.cltuData.length;
 
-            CltuNotification cn = new CltuNotification();
-            cn.setCltuRadiated(BER_NULL);
-            sendCltuAsyncNotify(cn);
-        });
+        CltuNotification cn = new CltuNotification();
+        cn.setCltuRadiated(BER_NULL);
+        sendCltuAsyncNotify(cn);
     }
 
     private void sendCltuAsyncNotify(CltuNotification cltuNotification) {
         CltuAsyncNotifyInvocation cani = new CltuAsyncNotifyInvocation();
 
         // invoker-credentials
-        cani.setInvokerCredentials(getNonBindCredentials());
+        cani.setInvokerCredentials(sleProvider.getNonBindCredentials());
         // notification-type
         cani.setCltuNotification(cltuNotification);
 
@@ -278,18 +316,15 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
         logger.debug("Sending CltuAsyncNotifyInvocation {}", cani);
         CltuProviderToUserPdu cptu = new CltuProviderToUserPdu();
         cptu.setCltuAsyncNotifyInvocation(cani);
-        channelHandlerContext.writeAndFlush(cptu);
+        sleProvider.sendMessage(cptu);
     }
 
     @Override
-    protected void sendStatusReport() {
-        if (state != State.READY && state != State.ACTIVE) {
-            return;
-        }
+    public void sendStatusReport() {
         CltuStatusReportInvocation csri = new CltuStatusReportInvocation();
 
         // invoker-credentials
-        csri.setInvokerCredentials(getNonBindCredentials());
+        csri.setInvokerCredentials(sleProvider.getNonBindCredentials());
 
         // cltu-last-processed
 
@@ -316,7 +351,7 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
 
         CltuProviderToUserPdu cptu = new CltuProviderToUserPdu();
         cptu.setCltuStatusReportInvocation(csri);
-        channelHandlerContext.writeAndFlush(cptu);
+        sleProvider.sendMessage(cptu);
     }
 
     CltuLastProcessed getCltuLastProcessed(int cltuId, CcsdsTime time, ForwardDuStatus cltuStatus) {
@@ -347,15 +382,15 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
     }
 
     @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        super.channelInactive(ctx);
+    public void abort() {
         if (queueRunner != null) {
             queueRunner.interrupt();
         }
     }
 
-    public void shutdown() {
-        super.shutdown();
+    @Override
+    public void unbind() {
+        // nothing to do
     }
 
     /*
@@ -382,8 +417,7 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
             }
             if (qc == null) {
                 uplinkCltu(tqc);
-            } else if (qc == SIGNAL_QC) {
-                // a new cltu has been put in the TimedQueuedCltu
+            } else if (qc == SIGNAL_TQC) {// this means that a new Timed CLTU has been put in the TimedQueuedCltu
                 timedCltus.add(tqc);
             } else {
                 uplinkCltu(qc);
@@ -398,11 +432,11 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
     }
 
     private void uplinkCltu(QueuedCltu qc) {
-        UplinkResult ur = cltuConsumer.uplink(qc.cltuData);
+        UplinkResult ur = cltuUplinker.uplink(qc.cltuData);
         cltuRadiated(qc, ur);
     }
 
-    static class CltuStatusReport {
+    static class CltuServiceState {
         int cltuLastProcessedId = -1;
         CcsdsTime cltuLastProcessedRadiationTime;
         ForwardDuStatus cltuLastProcesseStatus;
@@ -440,4 +474,10 @@ public class CltuServiceProviderHandler extends AbstractServiceProviderHandler {
             return this.earliestTransmissionTime.compareTo(o.earliestTransmissionTime);
         }
     }
+
+    @Override
+    public State getState() {
+        return state;
+    }
+
 }
