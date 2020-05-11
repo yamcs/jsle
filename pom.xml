@@ -127,7 +127,7 @@
 				<configuration>
 					<autoVersionSubmodules>true</autoVersionSubmodules>
 					<useReleaseProfile>false</useReleaseProfile>
-					<releaseProfiles>yamcs-release</releaseProfiles>
+					<releaseProfiles>jsle-release</releaseProfiles>
 					<pushChanges>false</pushChanges>
 					<localCheckout>true</localCheckout>
 					<goals>deploy</goals>
@@ -139,18 +139,20 @@
 				<version>1.2.1</version>
 				<configuration>
 					<mainClass>org.yamcs.sle.udpslebridge.SleUdpBridge</mainClass>
-                                        <arguments>
-                                             <argument>-c</argument>
-                                             <argument>bridge.properties</argument>
-                                        </arguments>
+					<arguments>
+						<argument>-c</argument>
+						<argument>bridge.properties</argument>
+					</arguments>
 				</configuration>
 			</plugin>
+
+
 		</plugins>
 	</build>
 
 	<profiles>
 		<profile>
-			<id>yamcs-release</id>
+			<id>jsle-release</id>
 			<activation>
 				<property>
 					<name>performRelease</name>
@@ -198,7 +200,7 @@
 							</execution>
 						</executions>
 					</plugin>
-					<plugin>
+				<!-- 	<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
 						<executions>
@@ -209,11 +211,21 @@
 								</goals>
 							</execution>
 						</executions>
+					</plugin> -->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>3.1.0</version>
+						<configuration>
+							<descriptors>
+								<descriptor>distribution/jsle.descriptor.xml</descriptor>
+							</descriptors>
+						</configuration>
 					</plugin>
-
 				</plugins>
 			</build>
 		</profile>
+
 	</profiles>
 
 </project>

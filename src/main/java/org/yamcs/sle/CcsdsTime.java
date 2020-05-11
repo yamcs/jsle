@@ -102,7 +102,8 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
     /**
      * Converts a UNIX time in seconds since 1970, nanoseconds in second (such as returned by gettitmeofday)
      * 
-     * @param javaTime
+     * @param unixSeconds seconds since 1-Jan-1970 00:00:00 (without leap seconds)
+     * @param nanosec nanoseconds in second
      * @return
      */
     static public CcsdsTime fromUnix(long unixSeconds, int nanosec) {
@@ -141,10 +142,9 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
     }
 
     /**
-     * P-field is implicit (not present, defaulted to 41 hex)
+     *
      * <p>
-     * T-field:
-     * <ul>
+     * 
      * T-field:
      * <ul>
      * <li>2 octets: number of days since 1958/01/01 00:00:00</li>

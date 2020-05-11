@@ -2,6 +2,7 @@ package org.yamcs.sle.provider;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 
 import org.yamcs.sle.State;
 import org.yamcs.sle.Constants.LockStatus;
@@ -10,11 +11,13 @@ import org.yamcs.sle.CcsdsTime;
 
 import com.beanit.jasn1.ber.BerTag;
 import com.beanit.jasn1.ber.types.BerInteger;
+import com.beanit.jasn1.ber.types.BerOctetString;
 
 import ccsds.sle.transfer.service.common.pdus.SleAcknowledgement;
 import ccsds.sle.transfer.service.common.pdus.SleStopInvocation;
 import ccsds.sle.transfer.service.common.types.Diagnostics;
 import ccsds.sle.transfer.service.common.types.IntUnsignedLong;
+import ccsds.sle.transfer.service.common.types.InvokeId;
 import ccsds.sle.transfer.service.common.types.SpaceLinkDataUnit;
 import ccsds.sle.transfer.service.raf.incoming.pdus.RafGetParameterInvocation;
 import ccsds.sle.transfer.service.raf.incoming.pdus.RafStartInvocation;
@@ -51,6 +54,8 @@ public class RafServiceProvider implements SleService {
 
     public RafServiceProvider(FrameDownlinker frameDownlinker) {
         this.frameDownlinker = frameDownlinker;
+        this.antennaId = new AntennaId();
+        antennaId.setLocalForm(new BerOctetString("jsle-bridge".getBytes()));
     }
 
     @Override
@@ -88,16 +93,18 @@ public class RafServiceProvider implements SleService {
 
         if (state != State.READY) {
             logger.warn("wrong state {} for start invocation", state);
-            DiagnosticRafStart dcs = new DiagnosticRafStart();
-            dcs.setSpecific(new BerInteger(1));
-            r.setNegativeResult(dcs);
-        } else {
-            int res = frameDownlinker.start();
-            if (res < 0) {
-                state = State.ACTIVE;
-                r.setPositiveResult(BER_NULL);
-            }
+            sendNegativeStartResponse(rafStartInvocation.getInvokeId(), 1);
+            return;
         }
+        int res = frameDownlinker.start();
+        if (res >= 0) {
+            logger.warn("frame downlinker returned error {} when starting", res);
+            sendNegativeStartResponse(rafStartInvocation.getInvokeId(), res);
+            return;
+        }
+        
+        state = State.ACTIVE;
+        r.setPositiveResult(BER_NULL);
 
         RafStartReturn rsr = new RafStartReturn();
         rsr.setResult(r);
@@ -110,6 +117,20 @@ public class RafServiceProvider implements SleService {
         provider.sendMessage(rptu);
 
     }
+    
+    private void sendNegativeStartResponse(InvokeId invokeId, int diagnostic) {
+        RafStartReturn.Result r = new RafStartReturn.Result();
+        DiagnosticRafStart dcs = new DiagnosticRafStart();
+        dcs.setSpecific(new BerInteger(diagnostic));
+        r.setNegativeResult(dcs);
+        RafStartReturn rsr = new RafStartReturn();
+        rsr.setPerformerCredentials(provider.getNonBindCredentials());
+        
+        logger.debug("Sending RafStartReturn {}", rsr);
+        RafProviderToUserPdu rptu = new RafProviderToUserPdu();
+        rptu.setRafStartReturn(rsr);
+        provider.sendMessage(rptu);
+    }
 
     protected void processSleStopInvocation(SleStopInvocation sleStopInvocation) {
         logger.debug("Received SleStopInvocation {}", sleStopInvocation);
@@ -121,6 +142,7 @@ public class RafServiceProvider implements SleService {
         if (state == State.ACTIVE) {
             state = State.READY;
             result.setPositiveResult(BER_NULL);
+            frameDownlinker.stop();
         } else {
             logger.warn("received stop while in state {}", state);
             result.setNegativeResult(new Diagnostics(127));// other reason
@@ -181,7 +203,8 @@ public class RafServiceProvider implements SleService {
         RafTransferDataInvocation rtdi = new RafTransferDataInvocation();
         rtdi.setInvokerCredentials(provider.getNonBindCredentials());
         rtdi.setEarthReceiveTime(CcsdsTime.toSle(ert, sleVersion));
-        rtdi.setData(new SpaceLinkDataUnit(data));
+        byte[] frameData = Arrays.copyOfRange(data, dataOffset, dataOffset+dataLength);
+        rtdi.setData(new SpaceLinkDataUnit(frameData));
         rtdi.setAntennaId(antennaId);
         rtdi.setDataLinkContinuity(new BerInteger(dataLinkContinuity));
         rtdi.setDeliveredFrameQuality(new ccsds.sle.transfer.service.raf.structures.FrameQuality(frameQuality));
@@ -192,6 +215,7 @@ public class RafServiceProvider implements SleService {
         fon.setAnnotatedFrame(rtdi);
         rtb.getFrameOrNotification().add(fon);
 
+        logger.trace("Sending RafTransferBuffer {}", rtb);
         RafProviderToUserPdu rptu = new RafProviderToUserPdu();
         rptu.setRafTransferBuffer(rtb);
         provider.sendMessage(rptu);
@@ -219,9 +243,11 @@ public class RafServiceProvider implements SleService {
 
     @Override
     public void abort() {
+        frameDownlinker.shutdown();
     }
 
     @Override
     public void unbind() {
+        
     }
 }

@@ -55,18 +55,20 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
  * When BIND is called, it relies first on the {@link AuthProvider} to obtain user/name passwords information for the
  * new connection and then on the {@link ServiceInitializer} for obtaining a {@link SleService}.
  * It then it forwards all the subsequent operations to the newly obtained service.
- * <p><p>
+ * <p>
+ * 
  * In order to use it
  * <ol>
- * <li>create a Netty pipeline with this class at the end of the pipeline </li>
+ * <li>create a Netty pipeline with this class at the end of the pipeline</li>
  * <li>make an implementation for {@link AuthProvider} that provides authentication data</li>
  * <li>make an implementation for {@link ServiceInitializer} which based on some configuration creates one of the
- * {@link CltuServiceProvder} or {@link RafServiceProvider} (or maybe others in the future).
+ * {@link CltuServiceProvider} or {@link RafServiceProvider} (or maybe others in the future).
  * </li>
  * <li>make an implementation of {@link CltuUplinker} which uplinks the CLTUs</li>
- * <li>make an implementation of {@link RafDownlinker} which provides telemetry frames</li>
+ * <li>make an implementation of {@link FrameDownlinker} which provides telemetry frames</li>
  * </ol>
- * <p><p>
+ * 
+ * <p>
  * See the {@link SleUdpBridge} for an example on how this class is used to create a SLE to UDP bridge.
  *
  * 
@@ -165,10 +167,6 @@ public class SleProvider extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         monitors.forEach(m -> m.connected());
-        ctx.channel().closeFuture().addListener(cf -> {
-            logger.debug("Connection {} closed", ctx.channel().remoteAddress());
-            notifyDisconnected();
-        });
     }
 
     public boolean isConnected() {
@@ -220,11 +218,11 @@ public class SleProvider extends ChannelInboundHandlerAdapter {
             sendNegativeBindResult(sir.diagnostic);
             return;
         }
-         
+
         this.sleVersion = version;
         sleService = sir.sleService;
         sleService.init(this);
-        
+
         SleBindReturn.Result r = new Result();
         r.setPositive(new VersionNumber(sleVersion));
         changeState(State.READY);
@@ -232,9 +230,7 @@ public class SleProvider extends ChannelInboundHandlerAdapter {
         sbr.setResult(r);
         sbr.setResponderIdentifier(new AuthorityIdentifier(responderId.getBytes(StandardCharsets.US_ASCII)));
         sbr.setPerformerCredentials(getBindCredentials());
-        
-        
-        
+
         logger.debug("sending bind return {}", sbr);
         RafProviderToUserPdu ptu = new RafProviderToUserPdu(); // we use RAF but it's the same message for all services
         ptu.setRafBindReturn(sbr);
@@ -371,8 +367,13 @@ public class SleProvider extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        logger.info("Connection {} closed", ctx.channel().remoteAddress());
         super.channelInactive(ctx);
         cancelStatusReport();
+        if (sleService != null) {
+            sleService.abort();
+        }
+        notifyDisconnected();
     }
 
     /**

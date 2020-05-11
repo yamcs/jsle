@@ -92,8 +92,8 @@ public class SleUdpBridge {
     static public void main(String[] args) throws Exception {
 
         InternalLoggerFactory.setDefaultFactory(JdkLoggerFactory.INSTANCE);
-        String cfile = null;
-        String lfile = null;
+        String cfile = "config.properties";
+        String lfile = "logging.properties";
         for (int i = 0; i < args.length; i++) {
             if ("-h".equals(args[i]) || "-help".equals(args[i]) || "--help".equals(args[i])) {
 
@@ -109,7 +109,8 @@ public class SleUdpBridge {
                 lfile = args[++i];
             }
         }
-        if (cfile == null) {
+        if (new File(cfile).exists()) {
+            System.err.println("Config file does not exist: "+cfile);
             printUsageAndExit();
         }
 
