@@ -123,8 +123,9 @@ public class RafTest {
         @Override
         public void acceptFrame(RafTransferDataInvocation rtdi) {
             CcsdsTime ct = CcsdsTime.fromSle(rtdi.getEarthReceiveTime());
-            System.out.println("picoinday: "+ct.getPicosecInDay());
-            System.out.println(ct+" accept frame: " + rtdi);
+            //System.out.println(ct+" accept frame: " + rtdi);
+            System.out.println(ct+" accept frame of length " + rtdi.getData().value.length);
+
         }
 
         @Override

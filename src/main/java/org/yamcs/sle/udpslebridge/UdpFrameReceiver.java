@@ -37,6 +37,7 @@ public class UdpFrameReceiver implements FrameDownlinker, Runnable {
 
     @Override
     public void run() {
+        logger.info("Listening for UDP frames at port "+ port);
         while (!stopping) {
             DatagramPacket datagram = new DatagramPacket(new byte[maxFrameLength], maxFrameLength);
             try {
@@ -55,6 +56,7 @@ public class UdpFrameReceiver implements FrameDownlinker, Runnable {
             } else {
                 dataLinkContinuity = 0;//no frame missing
             }
+            System.out.println("sending datagram of size "+datagram.getLength());
             rsp.sendFrame(CcsdsTime.now(), FrameQuality.good, dataLinkContinuity, datagram.getData(), datagram.getOffset(),
                     datagram.getLength());
         }
@@ -65,7 +67,7 @@ public class UdpFrameReceiver implements FrameDownlinker, Runnable {
         stopping = false;
         first = true;
         try {
-            socket = new DatagramSocket();
+            socket = new DatagramSocket(port);
             runner = new Thread(this);
             runner.start();
         } catch (SocketException e) {

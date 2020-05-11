@@ -141,6 +141,7 @@ public class CltuServiceProvider implements SleService {
         } 
         
         state = State.ACTIVE;
+        cltuStatusReport.prodStatus = CltuProductionStatus.operational;
         CltuStartReturn.Result.PositiveResult pr = new CltuStartReturn.Result.PositiveResult();
         pr.setStartRadiationTime(CcsdsTime.toSle(CcsdsTime.now(), sleVersion));
         pr.setStopRadiationTime(COND_TIME_UNDEFINED);
@@ -244,6 +245,7 @@ public class CltuServiceProvider implements SleService {
         if (state == State.ACTIVE) {
             queueRunner.interrupt();
             state = State.READY;
+            cltuStatusReport.prodStatus = CltuProductionStatus.configured;
             result.setPositiveResult(BER_NULL);
         } else {
             logger.warn("received stop while in state {}", state);

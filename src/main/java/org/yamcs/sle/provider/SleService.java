@@ -20,7 +20,7 @@ public interface SleService {
     /**
      * Called at the beginning. to initialize the service.
      * 
-     * @param server
+     * @param provider
      */
     void init(SleProvider provider);
 
@@ -46,8 +46,7 @@ public interface SleService {
 
     /**
      * Called by the {@link SleProvider} when the connection has been abruptly terminated. The Service has to do
-     * necessary
-     * cleanup operation.
+     * necessary cleanup operation.
      */
     void abort();
 
