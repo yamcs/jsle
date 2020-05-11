@@ -11,8 +11,8 @@
 	<description>Java implementation for the SLE (Space Link Extension) protocol.</description>
 	<licenses>
 		<license>
-			<name>GNU Affero General Public License (AGPL)</name>
-			<url>https://www.gnu.org/licenses/agpl-3.0.html</url>
+      			<name>GNU Lesser General Public License (LGPL)</name>
+      			<url>https://www.gnu.org/licenses/lgpl-3.0.html</url>
 		</license>
 	</licenses>
 	<properties>
