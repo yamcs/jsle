@@ -367,7 +367,7 @@ public class SleProvider extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        logger.info("Connection {} closed", ctx.channel().remoteAddress());
+        logger.debug("Connection {} closed", ctx.channel().remoteAddress());
         super.channelInactive(ctx);
         cancelStatusReport();
         if (sleService != null) {

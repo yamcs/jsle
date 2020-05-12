@@ -280,7 +280,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         ApplicationIdentifier appId = getApplicationIdentifier();
         sbi.setServiceType(
                 new ccsds.sle.transfer.service.bind.types.ApplicationIdentifier(appId.getId()));
-        logger.info("Sending bind request serviceInstanceIdentifier: {}, versionNumber: {}, appId: {}",
+        logger.debug("Sending bind request serviceInstanceIdentifier: {}, versionNumber: {}, appId: {}",
                 StringConverter.toString(sii), sleVersion, appId);
         utp.setRafBindInvocation(sbi);
         channelHandlerContext.writeAndFlush(utp);
@@ -296,8 +296,9 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         Result r = bindReturn.getResult();
         if (r.getNegative() != null) {
             changeState(State.UNBOUND);
-            bindingCf.completeExceptionally(
-                    new SleException("bind failed: " + Constants.BIND_DIAGNOSTIC.get(r.getNegative().intValue())));
+            String reason = Constants.BIND_DIAGNOSTIC.get(r.getNegative().intValue());
+            logger.debug("bind failed : {}", reason);
+            bindingCf.completeExceptionally(new SleException("bind failed: " + reason));
         } else {
             changeState(State.READY);
             bindingCf.complete(null);
@@ -463,6 +464,9 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         monitors.forEach(m -> m.disconnected());
     }
 
+    public State getState() {
+        return state;
+    }
     
 
     protected abstract ApplicationIdentifier getApplicationIdentifier();
