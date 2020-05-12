@@ -16,11 +16,13 @@ import com.beanit.jasn1.ber.BerTag;
 import org.yamcs.sle.AuthLevel;
 import org.yamcs.sle.Constants;
 import org.yamcs.sle.Isp1Authentication;
+import org.yamcs.sle.SleParameter;
 import org.yamcs.sle.SleException;
 import org.yamcs.sle.SleMonitor;
 import org.yamcs.sle.State;
 import org.yamcs.sle.StringConverter;
 import org.yamcs.sle.Constants.ApplicationIdentifier;
+import org.yamcs.sle.Constants.ParameterName;
 
 import ccsds.sle.transfer.service.bind.types.AuthorityIdentifier;
 import ccsds.sle.transfer.service.bind.types.PortId;
@@ -39,11 +41,8 @@ import ccsds.sle.transfer.service.common.pdus.SleAcknowledgement;
 import ccsds.sle.transfer.service.common.pdus.SleScheduleStatusReportInvocation;
 import ccsds.sle.transfer.service.common.pdus.SleScheduleStatusReportReturn;
 import ccsds.sle.transfer.service.common.pdus.SleStopInvocation;
-import ccsds.sle.transfer.service.common.types.ConditionalTime;
 import ccsds.sle.transfer.service.common.types.Credentials;
 import ccsds.sle.transfer.service.common.types.InvokeId;
-import ccsds.sle.transfer.service.common.types.Time;
-import ccsds.sle.transfer.service.common.types.TimeCCSDS;
 import ccsds.sle.transfer.service.raf.incoming.pdus.RafUsertoProviderPdu;
 import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceIdentifier;
 import io.netty.buffer.ByteBuf;
@@ -166,6 +165,16 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         });
     }
 
+    /**
+     * Get the value of an RAF parameter from the provider
+     * 
+     * @param parameterId
+     *            one of the parameters defined in {@link ParameterName}. Note that not all of them make sense for the
+     *            RAF, see the table 3-11 in the standard to see which ones make sense.
+     * @return
+     */
+    public abstract CompletableFuture<SleParameter> getParameter(int parameterId);
+    
 
     public boolean isConnected() {
         return channelHandlerContext.channel().isActive();
@@ -182,16 +191,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         return cf;
     }
 
-    /**
-     * Request that the SLE service provider starts sending data
-     * 
-     * @return
-     */
-    public CompletableFuture<Void> start() {
-        CompletableFuture<Void> cf = new CompletableFuture<>();
-        channelHandlerContext.executor().execute(() -> sendStart(cf));
-        return cf;
-    }
+  
 
     /**
      * request that the SLE service provider stop service provision and production.
@@ -468,7 +468,5 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     protected abstract ApplicationIdentifier getApplicationIdentifier();
 
     protected abstract void processData(BerTag berTag, InputStream is) throws IOException;
-
-    abstract void sendStart(CompletableFuture<Void> cf);
 
 }

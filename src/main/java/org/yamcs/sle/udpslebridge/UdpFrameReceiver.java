@@ -9,12 +9,12 @@ import java.util.logging.Logger;
 import org.yamcs.sle.CcsdsTime;
 import org.yamcs.sle.Constants.FrameQuality;
 import org.yamcs.sle.provider.FrameDownlinker;
-import org.yamcs.sle.provider.RafServiceProvider;
+import org.yamcs.sle.provider.RacfServiceProvider;
 
 public class UdpFrameReceiver implements FrameDownlinker, Runnable {
     static Logger logger = Logger.getLogger(UdpFrameReceiver.class.getName());
     
-    RafServiceProvider rsp;
+    RacfServiceProvider rsp;
     int port;
     private DatagramSocket socket;
     Thread runner;
@@ -30,7 +30,7 @@ public class UdpFrameReceiver implements FrameDownlinker, Runnable {
     }
 
     @Override
-    public void init(RafServiceProvider rsp) {
+    public void init(RacfServiceProvider rsp) {
         this.rsp = rsp;
 
     }

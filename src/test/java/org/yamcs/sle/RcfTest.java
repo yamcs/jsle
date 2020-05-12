@@ -7,7 +7,7 @@ import org.yamcs.sle.Constants.LockStatus;
 import org.yamcs.sle.Constants.ProductionStatus;
 import org.yamcs.sle.user.FrameConsumer;
 import org.yamcs.sle.user.RacfStatusReport;
-import org.yamcs.sle.user.RafServiceUserHandler;
+import org.yamcs.sle.user.RcfServiceUserHandler;
 import org.yamcs.sle.user.SleAttributes;
 import org.yamcs.sle.Isp1Authentication;
 import org.yamcs.sle.Isp1Handler;
@@ -24,7 +24,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
-public class RafTest {
+public class RcfTest {
 
     public static void main(String[] args) throws Exception {
         String host = "localhost";
@@ -36,8 +36,8 @@ public class RafTest {
                 ByteBufUtil.decodeHexDump("000102030405060708090a0b0c0d0e0f"),
                 "jsle-bridge", ByteBufUtil.decodeHexDump("AB0102030405060708090a0b0c0d0e0f"), "SHA-1");
         MyConsumer c = new MyConsumer();
-        SleAttributes attr = new SleAttributes(responderPortId, initiatorId, "sagr=SAGR.spack=SPACK.rsl-fg=RSL-FG.raf=onlt1");
-        RafServiceUserHandler rsuh = new RafServiceUserHandler(isp1Authentication, attr,  DeliveryMode.rtnTimelyOnline, c);
+        SleAttributes attr = new SleAttributes(responderPortId, initiatorId, "sagr=SAGR.spack=SPACK.rsl-fg=RSL-FG.rcf=onlt1");
+        RcfServiceUserHandler rsuh = new RcfServiceUserHandler(isp1Authentication, attr,  DeliveryMode.rtnTimelyOnline, c);
         rsuh.setAuthLevel(AuthLevel.BIND);
         
         MyMonitor m = new MyMonitor();
@@ -60,13 +60,14 @@ public class RafTest {
                 }
             });
 
+            GVCID gvcid = new GVCID(0, 1, 1);
             // Start the client.
             ChannelFuture f = b.connect(host, port).sync();
 
             rsuh.bind().get();
 
             System.out.println("yuhuu bound");
-            rsuh.start().get();
+            rsuh.start(gvcid).get();
             System.out.println("yuhuu started");
 
             /*
@@ -145,7 +146,7 @@ public class RafTest {
         @Override
         public void acceptFrame(CcsdsTime ert, AntennaId antennaId, int dataLinkContinuity, FrameQuality frameQuality,
                 byte[] privAnn, byte[] data) {
-            System.out.println(ert+" accept frame of length " + data.length);
+            System.out.println(ert+" received frame of length " + data.length);
 
         }
     }
@@ -173,6 +174,7 @@ public class RafTest {
 
         @Override
         public void exceptionCaught(Throwable t) {
+            t.printStackTrace();
             System.out.println("MyMonitor:exceptionCaught: " + t);
 
         }

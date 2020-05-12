@@ -7,7 +7,7 @@ public interface FrameDownlinker {
      * @param rsp
      *            - the frames should be forwarded to this
      */
-    void init(RafServiceProvider rsp);
+    void init(RacfServiceProvider rsp);
 
     
 

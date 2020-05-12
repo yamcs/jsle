@@ -10,6 +10,7 @@ import com.beanit.jasn1.ber.types.string.BerVisibleString;
 import ccsds.sle.transfer.service.cltu.structures.DiagnosticCltuStart;
 import ccsds.sle.transfer.service.common.types.Diagnostics;
 import ccsds.sle.transfer.service.raf.structures.DiagnosticRafStart;
+import ccsds.sle.transfer.service.rcf.structures.DiagnosticRcfStart;
 import ccsds.sle.transfer.service.service.instance.id.OidValues;
 import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceAttribute;
 import ccsds.sle.transfer.service.service.instance.id.ServiceInstanceIdentifier;
@@ -113,6 +114,16 @@ public class StringConverter {
     }
     
     public static String toString(DiagnosticRafStart drs) {
+        if (drs.getCommon() != null) {
+            return toString(drs.getCommon());
+        } else  if (drs.getSpecific() != null) {
+            return Constants.getDiagnostic(drs.getSpecific().intValue(), Constants.RAF_START_DIAGNOSTICS_SPECIFIC);
+        } else {
+            return "unknown";
+        }
+    }
+    
+    public static String toString(DiagnosticRcfStart drs) {
         if (drs.getCommon() != null) {
             return toString(drs.getCommon());
         } else  if (drs.getSpecific() != null) {

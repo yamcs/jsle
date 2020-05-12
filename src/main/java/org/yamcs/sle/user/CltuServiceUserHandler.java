@@ -9,6 +9,7 @@ import org.yamcs.sle.CcsdsTime;
 import org.yamcs.sle.Constants;
 import org.yamcs.sle.Isp1Authentication;
 import org.yamcs.sle.SleException;
+import org.yamcs.sle.SleParameter;
 import org.yamcs.sle.State;
 import org.yamcs.sle.StringConverter;
 import org.yamcs.sle.Constants.ApplicationIdentifier;
@@ -30,7 +31,6 @@ import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuThrowEventReturn;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuTransferDataReturn;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuTransferDataReturn.Result;
 import ccsds.sle.transfer.service.cltu.structures.CltuData;
-import ccsds.sle.transfer.service.cltu.structures.CltuGetParameter;
 import ccsds.sle.transfer.service.cltu.structures.CltuIdentification;
 import ccsds.sle.transfer.service.cltu.structures.CltuParameterName;
 import ccsds.sle.transfer.service.cltu.structures.EventInvocationId;
@@ -72,13 +72,13 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
      *            CLTU, see the table 3-11 in the standard to see which ones make sense.
      * @return
      */
-    public CompletableFuture<CltuGetParameter> getParameter(int parameterId) {
-        CompletableFuture<CltuGetParameter> cf = new CompletableFuture<>();
+    public CompletableFuture<SleParameter> getParameter(int parameterId) {
+        CompletableFuture<SleParameter> cf = new CompletableFuture<>();
         channelHandlerContext.executor().execute(() -> sendGetParameter(parameterId, cf));
         return cf;
     }
 
-    public CompletableFuture<CltuGetParameter> getParameter(ParameterName parameterName) {
+    public CompletableFuture<SleParameter> getParameter(ParameterName parameterName) {
         return getParameter(parameterName.getId());
     }
     /**
@@ -247,7 +247,7 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
 
     }
 
-    private void sendGetParameter(int parameterId, CompletableFuture<CltuGetParameter> cf) {
+    private void sendGetParameter(int parameterId, CompletableFuture<SleParameter> cf) {
         CltuUserToProviderPdu cutp = new CltuUserToProviderPdu();
 
         CltuGetParameterInvocation cgpi = new CltuGetParameterInvocation();
@@ -261,12 +261,12 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
     private void processGetParameterReturn(CltuGetParameterReturn cltuGetParameterReturn) {
         verifyNonBindCredentials(cltuGetParameterReturn.getPerformerCredentials());
 
-        CompletableFuture<CltuGetParameter> cf = getFuture(cltuGetParameterReturn.getInvokeId());
+        CompletableFuture<SleParameter> cf = getFuture(cltuGetParameterReturn.getInvokeId());
         CltuGetParameterReturn.Result r = cltuGetParameterReturn.getResult();
         if (r.getNegativeResult() != null) {
             cf.completeExceptionally(new SleException("error getting parameter", r.getNegativeResult()));
         } else {
-            cf.complete(r.getPositiveResult());
+            cf.complete(new SleParameter(r.getPositiveResult()));
         }
     }
 
@@ -277,6 +277,17 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         }
         monitors.forEach(m -> ((CltuSleMonitor) m).onAsyncNotify(cltuAsyncNotifyInvocation));
     }
+    /**
+     * Request that the SLE service provider starts sending data
+     * 
+     * @return
+     */
+    public CompletableFuture<Void> start() {
+        CompletableFuture<Void> cf = new CompletableFuture<>();
+        channelHandlerContext.executor().execute(() -> sendStart(cf));
+        return cf;
+    }
+    
 
     protected void sendStart(CompletableFuture<Void> cf) {
         if (state != State.READY) {

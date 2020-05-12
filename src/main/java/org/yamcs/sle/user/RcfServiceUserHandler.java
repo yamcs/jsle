@@ -21,47 +21,45 @@ import org.yamcs.sle.Constants.FrameQuality;
 import org.yamcs.sle.Constants.LockStatus;
 import org.yamcs.sle.Constants.ParameterName;
 import org.yamcs.sle.Constants.ProductionStatus;
-import org.yamcs.sle.Constants.RequestedFrameQuality;
+import org.yamcs.sle.GVCID;
 
 import ccsds.sle.transfer.service.common.types.InvokeId;
-import ccsds.sle.transfer.service.raf.incoming.pdus.RafGetParameterInvocation;
-import ccsds.sle.transfer.service.raf.incoming.pdus.RafStartInvocation;
-import ccsds.sle.transfer.service.raf.incoming.pdus.RafUsertoProviderPdu;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.FrameOrNotification;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafGetParameterReturn;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafStartReturn;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafStatusReportInvocation;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafSyncNotifyInvocation;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafTransferBuffer;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafTransferDataInvocation;
-import ccsds.sle.transfer.service.raf.structures.LockStatusReport;
-import ccsds.sle.transfer.service.raf.structures.Notification;
-import ccsds.sle.transfer.service.raf.structures.RafGetParameter;
-import ccsds.sle.transfer.service.raf.structures.RafParameterName;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafTransferDataInvocation.PrivateAnnotation;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfTransferDataInvocation.PrivateAnnotation;
+import ccsds.sle.transfer.service.rcf.incoming.pdus.RcfGetParameterInvocation;
+import ccsds.sle.transfer.service.rcf.incoming.pdus.RcfStartInvocation;
+import ccsds.sle.transfer.service.rcf.incoming.pdus.RcfUserToProviderPdu;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.FrameOrNotification;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfGetParameterReturn;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfStartReturn;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfStatusReportInvocation;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfSyncNotifyInvocation;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfTransferBuffer;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfTransferDataInvocation;
+import ccsds.sle.transfer.service.rcf.structures.RcfParameterName;
+import ccsds.sle.transfer.service.rcf.structures.LockStatusReport;
+import ccsds.sle.transfer.service.rcf.structures.Notification;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 /**
- * Implementation for the CCSDS RECOMMENDED STANDARD FOR SLE RCF SERVICE
- * CCSDS 911.2-B-3 August 2016
+ * Implementation for the CCSDS RECOMMENDED STANDARD FOR SLE RAF SERVICE
+ * CCSDS 911.1-B-4 August 2016
  * https://public.ccsds.org/Pubs/911x1b4.pdf
  * <p>
- * This class contains RAF specific implementation
+ * This is copy and paste from {@link RafServiceUserHandler} because the RAF and RCF are almost the same but slightly so
+ * different (seems like the CCSDS committee was missing from school when the lessons about code reused has been taught).
+ * <p>
+ * We do however provide one common RAF/RCF interface to our users highlighting the small differences in the API.
  * @author nm
  *
  */
-public class RafServiceUserHandler extends RacfServiceUserHandler {
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(RafServiceUserHandler.class);
-    int cltuId = 1;
-
-
-    private RequestedFrameQuality requestedFrameQuality = RequestedFrameQuality.goodFramesOnly;
-
-    public RafServiceUserHandler(Isp1Authentication auth, SleAttributes attr, DeliveryMode deliveryMode,
-            FrameConsumer consumer) {
+public class RcfServiceUserHandler extends RacfServiceUserHandler {
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(RcfServiceUserHandler.class);
+   
+    
+    public RcfServiceUserHandler(Isp1Authentication auth, SleAttributes attr, DeliveryMode deliveryMode, FrameConsumer consumer) {
         super(auth, attr, deliveryMode, consumer);
-        setDeliveryMode(deliveryMode);
+        this.consumer = consumer;
     }
 
     /**
@@ -77,17 +75,6 @@ public class RafServiceUserHandler extends RacfServiceUserHandler {
         channelHandlerContext.executor().execute(() -> sendGetParameter(parameterId, cf));
         return cf;
     }
-    
-    /**
-     * Request that the SLE service provider starts sending data
-     * 
-     * @return
-     */
-    public CompletableFuture<Void> start() {
-        CompletableFuture<Void> cf = new CompletableFuture<>();
-        channelHandlerContext.executor().execute(() -> sendStart(cf));
-        return cf;
-    }
 
 
     /**
@@ -95,23 +82,10 @@ public class RafServiceUserHandler extends RacfServiceUserHandler {
      * 
      * @return
      */
-    public CompletableFuture<Void> start(CcsdsTime startTime, CcsdsTime stopTime) {
+    public CompletableFuture<Void> start(CcsdsTime startTime, CcsdsTime stopTime, GVCID requestedGvcid) {
         CompletableFuture<Void> cf = new CompletableFuture<>();
-        channelHandlerContext.executor().execute(() -> sendStart(cf, startTime, stopTime));
+        channelHandlerContext.executor().execute(() -> sendStart(cf, startTime, stopTime, requestedGvcid));
         return cf;
-    }
-
-    public RequestedFrameQuality getRequestedFrameQuality() {
-        return requestedFrameQuality;
-    }
-
-    /**
-     * Set the requested frame quality. This has to be done before the service start.
-     * 
-     * @param requestedFrameQuality
-     */
-    public void setRequestedFrameQuality(RequestedFrameQuality requestedFrameQuality) {
-        this.requestedFrameQuality = requestedFrameQuality;
     }
 
     /**
@@ -122,30 +96,41 @@ public class RafServiceUserHandler extends RacfServiceUserHandler {
     public void addMonitor(RacfSleMonitor monitor) {
         monitors.add(monitor);
     }
-
     public void removeMonitor(RacfSleMonitor monitor) {
         monitors.remove(monitor);
     }
-
-    void sendStart(CompletableFuture<Void> cf) {
-        sendStart(cf, null, null);
+    
+    /**
+     * Request that the SLE service provider starts sending data
+     * 
+     * @return
+     */
+    public CompletableFuture<Void> start(GVCID requestedGvcid) {
+        CompletableFuture<Void> cf = new CompletableFuture<>();
+        channelHandlerContext.executor().execute(() -> sendStart(cf, requestedGvcid));
+        return cf;
+    }
+    
+    
+    private void sendStart(CompletableFuture<Void> cf, GVCID requestedGvcid) {
+        sendStart(cf, null, null, requestedGvcid);
     }
 
     protected void processData(BerTag berTag, InputStream is) throws IOException {
         if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 8)) {
-            RafTransferBuffer rafTransferBuffer = new RafTransferBuffer();
+            RcfTransferBuffer rafTransferBuffer = new RcfTransferBuffer();
             rafTransferBuffer.decode(is, false);
             processTransferBuffer(rafTransferBuffer);
         } else if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 1)) {
-            RafStartReturn rafStartReturn = new RafStartReturn();
+            RcfStartReturn rafStartReturn = new RcfStartReturn();
             rafStartReturn.decode(is, false);
             processStartReturn(rafStartReturn);
         } else if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 9)) {
-            RafStatusReportInvocation rafStatusReportInvocation = new RafStatusReportInvocation();
+            RcfStatusReportInvocation rafStatusReportInvocation = new RcfStatusReportInvocation();
             rafStatusReportInvocation.decode(is, false);
             processStatusReportInvocation(rafStatusReportInvocation);
         } else if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 7)) {
-            RafGetParameterReturn rafGetParameterReturn = new RafGetParameterReturn();
+            RcfGetParameterReturn rafGetParameterReturn = new RcfGetParameterReturn();
             rafGetParameterReturn.decode(is, false);
             processGetParameterReturn(rafGetParameterReturn);
         } else {
@@ -155,17 +140,17 @@ public class RafServiceUserHandler extends RacfServiceUserHandler {
     }
 
     private void sendGetParameter(int parameterId, CompletableFuture<SleParameter> cf) {
-        RafUsertoProviderPdu rutp = new RafUsertoProviderPdu();
+        RcfUserToProviderPdu rutp = new RcfUserToProviderPdu();
 
-        RafGetParameterInvocation cgpi = new RafGetParameterInvocation();
+        RcfGetParameterInvocation cgpi = new RcfGetParameterInvocation();
         cgpi.setInvokeId(getInvokeId(cf));
         cgpi.setInvokerCredentials(getNonBindCredentials());
-        cgpi.setRafParameter(new RafParameterName(parameterId));
-        rutp.setRafGetParameterInvocation(cgpi);
+        cgpi.setRcfParameter(new RcfParameterName(parameterId));
+        rutp.setRcfGetParameterInvocation(cgpi);
         channelHandlerContext.writeAndFlush(rutp);
     }
 
-    protected void sendStart(CompletableFuture<Void> cf, CcsdsTime start, CcsdsTime stop) {
+    protected void sendStart(CompletableFuture<Void> cf, CcsdsTime start, CcsdsTime stop,  GVCID requestedGvcid) {
         if (state != State.READY) {
             cf.completeExceptionally(new SleException("Cannot call start while in state " + state));
             return;
@@ -173,61 +158,60 @@ public class RafServiceUserHandler extends RacfServiceUserHandler {
         changeState(State.STARTING);
         this.startingCf = cf;
 
-        RafUsertoProviderPdu rutp = new RafUsertoProviderPdu();
+        RcfUserToProviderPdu rutp = new RcfUserToProviderPdu();
 
-        RafStartInvocation rsi = new RafStartInvocation();
-        rsi.setRequestedFrameQuality(
-                new ccsds.sle.transfer.service.raf.structures.RequestedFrameQuality(requestedFrameQuality.getId()));
+        RcfStartInvocation rsi = new RcfStartInvocation();
         rsi.setInvokeId(new InvokeId(1));
         rsi.setStartTime(CcsdsTime.toSleConditional(start, sleVersion));
         rsi.setStopTime(CcsdsTime.toSleConditional(stop, sleVersion));
-
+        rsi.setRequestedGvcId(requestedGvcid.toRcf());
         rsi.setInvokerCredentials(getNonBindCredentials());
 
-        rutp.setRafStartInvocation(rsi);
+        rutp.setRcfStartInvocation(rsi);
         channelHandlerContext.writeAndFlush(rutp);
     }
 
-    private void processStartReturn(RafStartReturn rafStartReturn) {
-        verifyNonBindCredentials(rafStartReturn.getPerformerCredentials());
+   
+
+    private void processStartReturn(RcfStartReturn rcfStartReturn) {
+        verifyNonBindCredentials(rcfStartReturn.getPerformerCredentials());
         if (state != State.STARTING) {
             peerAbort();
             return;
         }
-        ccsds.sle.transfer.service.raf.outgoing.pdus.RafStartReturn.Result r = rafStartReturn.getResult();
+        ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfStartReturn.Result r = rcfStartReturn.getResult();
         if (r.getNegativeResult() != null) {
             changeState(State.READY);
-            startingCf.completeExceptionally(new SleException(
-                    "received negative result to start request: " + StringConverter.toString(r.getNegativeResult())));
+            startingCf.completeExceptionally(new SleException("received negative result to start request: "+StringConverter.toString(r.getNegativeResult())));
         } else {
             changeState(State.ACTIVE);
             startingCf.complete(null);
         }
     }
 
-    private void processGetParameterReturn(RafGetParameterReturn rafGetParameterReturn) {
-        verifyNonBindCredentials(rafGetParameterReturn.getPerformerCredentials());
+    private void processGetParameterReturn(RcfGetParameterReturn rcfGetParameterReturn) {
+        verifyNonBindCredentials(rcfGetParameterReturn.getPerformerCredentials());
 
-        CompletableFuture<RafGetParameter> cf = getFuture(rafGetParameterReturn.getInvokeId());
-        RafGetParameterReturn.Result r = rafGetParameterReturn.getResult();
+        CompletableFuture<SleParameter> cf = getFuture(rcfGetParameterReturn.getInvokeId());
+        RcfGetParameterReturn.Result r = rcfGetParameterReturn.getResult();
         if (r.getNegativeResult() != null) {
             cf.completeExceptionally(new SleException("error getting parameter", r.getNegativeResult()));
         } else {
-            cf.complete(r.getPositiveResult());
+            cf.complete(new SleParameter(r.getPositiveResult()));
         }
     }
 
-    private void processStatusReportInvocation(RafStatusReportInvocation rafStatusReportInvocation) {
+    private void processStatusReportInvocation(RcfStatusReportInvocation rafStatusReportInvocation) {
         verifyNonBindCredentials(rafStatusReportInvocation.getInvokerCredentials());
         if (logger.isTraceEnabled()) {
             logger.trace("Received statusReport {}", rafStatusReportInvocation);
         }
-        monitors.forEach(m -> ((RacfSleMonitor) m).onStatusReport(new RacfStatusReport(rafStatusReportInvocation)));
+        monitors.forEach(m -> ((RacfSleMonitor)m).onStatusReport(new RacfStatusReport(rafStatusReportInvocation)));
     }
 
-    private void processTransferBuffer(RafTransferBuffer rafTransferBuffer) {
-        for (FrameOrNotification fon : rafTransferBuffer.getFrameOrNotification()) {
-            RafTransferDataInvocation rtdi = fon.getAnnotatedFrame();
+    private void processTransferBuffer(RcfTransferBuffer rcfTransferBuffer) {
+        for (FrameOrNotification fon : rcfTransferBuffer.getFrameOrNotification()) {
+            RcfTransferDataInvocation rtdi = fon.getAnnotatedFrame();
             if (rtdi != null) {
                 verifyNonBindCredentials(rtdi.getInvokerCredentials());
                 CcsdsTime ert = CcsdsTime.fromSle(rtdi.getEarthReceiveTime());
@@ -236,11 +220,10 @@ public class RafServiceUserHandler extends RacfServiceUserHandler {
                 byte[] privAnn = pa.getNotNull()==null?null:pa.getNotNull().value;
                 byte[] data = rtdi.getData().value;
                 AntennaId antId = new AntennaId(rtdi.getAntennaId());
-                FrameQuality fq = FrameQuality.byId(rtdi.getDeliveredFrameQuality().intValue());
-                consumer.acceptFrame(ert, antId, dlc, fq, privAnn, data);
+                consumer.acceptFrame(ert, antId, dlc, FrameQuality.good, privAnn, data);
             }
-
-            RafSyncNotifyInvocation rsi = fon.getSyncNotification();
+            
+            RcfSyncNotifyInvocation rsi = fon.getSyncNotification();
             if (rsi != null) {
                 try {
                     verifyNonBindCredentials(rsi.getInvokerCredentials());
@@ -272,6 +255,6 @@ public class RafServiceUserHandler extends RacfServiceUserHandler {
 
     @Override
     protected ApplicationIdentifier getApplicationIdentifier() {
-        return Constants.ApplicationIdentifier.rtnAllFrames;
+        return Constants.ApplicationIdentifier.rtnChFrames;
     }
 }

@@ -165,17 +165,11 @@ public class Constants {
         }
     }
 
-    public static class FrameQuality {
-        public static final int good = 0;
-        public static final int erred = 1;
-        public static final int undetermined = 2;
-    }
-
-    public static enum RafProductionStatus {
-        running(0), interrupted(1), halted(2);
+    public static enum FrameQuality {
+        good(0), erred(1), undetermined(2);
         private final int id;
 
-        private RafProductionStatus(int id) {
+        private FrameQuality(int id) {
             this.id = id;
         }
 
@@ -183,8 +177,30 @@ public class Constants {
             return id;
         }
 
-        static public RafProductionStatus byId(int id) {
-            for (RafProductionStatus v : values()) {
+        static public FrameQuality byId(int id) {
+            for (FrameQuality v : values()) {
+                if (v.id == id) {
+                    return v;
+                }
+            }
+            throw new IllegalArgumentException("invalid id " + id);
+        }
+    }
+
+    public static enum ProductionStatus {
+        running(0), interrupted(1), halted(2);
+        private final int id;
+
+        private ProductionStatus(int id) {
+            this.id = id;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        static public ProductionStatus byId(int id) {
+            for (ProductionStatus v : values()) {
                 if (v.id == id) {
                     return v;
                 }

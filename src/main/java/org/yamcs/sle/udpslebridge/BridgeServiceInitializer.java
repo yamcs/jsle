@@ -8,6 +8,7 @@ import org.yamcs.sle.Constants.ApplicationIdentifier;
 import org.yamcs.sle.provider.CltuServiceProvider;
 import org.yamcs.sle.provider.CltuUplinker;
 import org.yamcs.sle.provider.RafServiceProvider;
+import org.yamcs.sle.provider.RcfServiceProvider;
 import org.yamcs.sle.provider.ServiceInitializer;
 import org.yamcs.sle.provider.SleService;
 
@@ -48,6 +49,13 @@ public class BridgeServiceInitializer implements ServiceInitializer {
             }
             return createRafProvider(id);
 
+        } else if ("rcf".equals(servType)) {
+            if (appId != ApplicationIdentifier.rtnChFrames) {
+                logger.info("Requested application " + appId + " does not match defined service type rcf");
+                return negativeResponse(6);// inconsistent service type
+            }
+            return createRcfProvider(id);
+
         } else if ("cltu".equals(servType)) {
             if (appId != ApplicationIdentifier.fwdCltu) {
                 logger.info("Requested application " + appId + " does not match defined service type cltu");
@@ -63,9 +71,16 @@ public class BridgeServiceInitializer implements ServiceInitializer {
 
     private ServiceInitResult createRafProvider(String id) {
         int port = Integer.valueOf(properties.getProperty("service."+id+".udpPort"));
-        int maxFrameLength = Integer.valueOf(properties.getProperty("service."+id+".udpPort", "1115"));
+        int maxFrameLength = Integer.valueOf(properties.getProperty("service."+id+".maxFrameLength", "1115"));
         RafServiceProvider rsp = new RafServiceProvider(new UdpFrameReceiver(port, maxFrameLength));
-        return positiveResponse("cltu-"+id, rsp);
+        return positiveResponse(id, rsp);
+    }
+    
+    private ServiceInitResult createRcfProvider(String id) {
+        int port = Integer.valueOf(properties.getProperty("service."+id+".udpPort"));
+        int maxFrameLength = Integer.valueOf(properties.getProperty("service."+id+".maxFrameLength", "1115"));
+        RcfServiceProvider rsp = new RcfServiceProvider(new UdpFrameReceiver(port, maxFrameLength));
+        return positiveResponse(id, rsp);
     }
 
     private ServiceInitResult createCltuProvider(String id) {
@@ -75,7 +90,7 @@ public class BridgeServiceInitializer implements ServiceInitializer {
         CltuUplinker cltuUplinker = new UdpCltuUplinker(hostname, port, bitrate);
 
         CltuServiceProvider csp = new CltuServiceProvider(cltuUplinker);
-        return positiveResponse("raf-"+id, csp);
+        return positiveResponse(id, csp);
     }
 
     private ServiceInitResult positiveResponse(String id, SleService service) {

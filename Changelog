@@ -1,3 +1,6 @@
+Version 0.8 released
+- implemented the Return Channel Frame (RCF) service
+
 Version 0.7 released 11-May-2020
 - implemented the SLE provider for RAF and CLTU
 - implemented a UDP to SLE bridge

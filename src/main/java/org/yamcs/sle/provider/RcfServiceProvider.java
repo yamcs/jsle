@@ -19,32 +19,31 @@ import ccsds.sle.transfer.service.common.types.Diagnostics;
 import ccsds.sle.transfer.service.common.types.IntUnsignedLong;
 import ccsds.sle.transfer.service.common.types.InvokeId;
 import ccsds.sle.transfer.service.common.types.SpaceLinkDataUnit;
-import ccsds.sle.transfer.service.raf.incoming.pdus.RafGetParameterInvocation;
-import ccsds.sle.transfer.service.raf.incoming.pdus.RafStartInvocation;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.FrameOrNotification;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafProviderToUserPdu;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafStartReturn;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafStatusReportInvocation;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafTransferBuffer;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafTransferDataInvocation;
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafTransferDataInvocation.PrivateAnnotation;
-import ccsds.sle.transfer.service.raf.structures.AntennaId;
-import ccsds.sle.transfer.service.raf.structures.CarrierLockStatus;
-import ccsds.sle.transfer.service.raf.structures.DiagnosticRafStart;
-import ccsds.sle.transfer.service.raf.structures.FrameSyncLockStatus;
-import ccsds.sle.transfer.service.raf.structures.SymbolLockStatus;
+import ccsds.sle.transfer.service.rcf.incoming.pdus.RcfGetParameterInvocation;
+import ccsds.sle.transfer.service.rcf.incoming.pdus.RcfStartInvocation;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.FrameOrNotification;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfProviderToUserPdu;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfStartReturn;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfStatusReportInvocation;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfTransferBuffer;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfTransferDataInvocation;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfTransferDataInvocation.PrivateAnnotation;
+import ccsds.sle.transfer.service.rcf.structures.AntennaId;
+import ccsds.sle.transfer.service.rcf.structures.CarrierLockStatus;
+import ccsds.sle.transfer.service.rcf.structures.DiagnosticRcfStart;
+import ccsds.sle.transfer.service.rcf.structures.FrameSyncLockStatus;
+import ccsds.sle.transfer.service.rcf.structures.SymbolLockStatus;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import static org.yamcs.sle.Constants.*;
 
-public class RafServiceProvider extends RacfServiceProvider {
+public class RcfServiceProvider extends RacfServiceProvider {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(CltuServiceProvider.class);
-    private static final PrivateAnnotation NULL_ANNOTATION = new PrivateAnnotation();
+    static final PrivateAnnotation NULL_ANNOTATION = new PrivateAnnotation();
     static {
         NULL_ANNOTATION.setNull(BER_NULL);
     };
-
     StatusReport statusReport = new StatusReport();
     private AntennaId antennaId;
     SleProvider provider;
@@ -52,7 +51,7 @@ public class RafServiceProvider extends RacfServiceProvider {
     int sleVersion;
     FrameDownlinker frameDownlinker;
 
-    public RafServiceProvider(FrameDownlinker frameDownlinker) {
+    public RcfServiceProvider(FrameDownlinker frameDownlinker) {
         this.frameDownlinker = frameDownlinker;
         this.antennaId = new AntennaId();
         antennaId.setLocalForm(new BerOctetString("jsle-bridge".getBytes()));
@@ -69,13 +68,13 @@ public class RafServiceProvider extends RacfServiceProvider {
     @Override
     public void processData(BerTag berTag, InputStream is) throws IOException {
         if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 0)) {
-            RafStartInvocation rafStartInvocation = new RafStartInvocation();
+            RcfStartInvocation rafStartInvocation = new RcfStartInvocation();
             rafStartInvocation.decode(is, false);
             processStartInvocation(rafStartInvocation);
         } else if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 6)) {
-            RafGetParameterInvocation rafGetParameterInvocation = new RafGetParameterInvocation();
+            RcfGetParameterInvocation rafGetParameterInvocation = new RcfGetParameterInvocation();
             rafGetParameterInvocation.decode(is, false);
-            processRafParameterInvocation(rafGetParameterInvocation);
+            processRcfParameterInvocation(rafGetParameterInvocation);
         } else if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 2)) {
             SleStopInvocation sleStopInvocation = new SleStopInvocation();
             sleStopInvocation.decode(is, false);
@@ -87,9 +86,9 @@ public class RafServiceProvider extends RacfServiceProvider {
 
     }
 
-    private void processStartInvocation(RafStartInvocation rafStartInvocation) {
+    private void processStartInvocation(RcfStartInvocation rafStartInvocation) {
         logger.debug("Received RafStartInvocation {}", rafStartInvocation);
-        RafStartReturn.Result r = new RafStartReturn.Result();
+        RcfStartReturn.Result r = new RcfStartReturn.Result();
 
         if (state != State.READY) {
             logger.warn("wrong state {} for start invocation", state);
@@ -106,29 +105,29 @@ public class RafServiceProvider extends RacfServiceProvider {
         state = State.ACTIVE;
         r.setPositiveResult(BER_NULL);
 
-        RafStartReturn rsr = new RafStartReturn();
+        RcfStartReturn rsr = new RcfStartReturn();
         rsr.setResult(r);
         rsr.setInvokeId(rafStartInvocation.getInvokeId());
         rsr.setPerformerCredentials(provider.getNonBindCredentials());
 
         logger.debug("Sending RafStartReturn {}", rsr);
-        RafProviderToUserPdu rptu = new RafProviderToUserPdu();
-        rptu.setRafStartReturn(rsr);
+        RcfProviderToUserPdu rptu = new RcfProviderToUserPdu();
+        rptu.setRcfStartReturn(rsr);
         provider.sendMessage(rptu);
 
     }
     
     private void sendNegativeStartResponse(InvokeId invokeId, int diagnostic) {
-        RafStartReturn.Result r = new RafStartReturn.Result();
-        DiagnosticRafStart dcs = new DiagnosticRafStart();
+        RcfStartReturn.Result r = new RcfStartReturn.Result();
+        DiagnosticRcfStart dcs = new DiagnosticRcfStart();
         dcs.setSpecific(new BerInteger(diagnostic));
         r.setNegativeResult(dcs);
-        RafStartReturn rsr = new RafStartReturn();
+        RcfStartReturn rsr = new RcfStartReturn();
         rsr.setPerformerCredentials(provider.getNonBindCredentials());
         
         logger.debug("Sending RafStartReturn {}", rsr);
-        RafProviderToUserPdu rptu = new RafProviderToUserPdu();
-        rptu.setRafStartReturn(rsr);
+        RcfProviderToUserPdu rptu = new RcfProviderToUserPdu();
+        rptu.setRcfStartReturn(rsr);
         provider.sendMessage(rptu);
     }
 
@@ -149,28 +148,27 @@ public class RafServiceProvider extends RacfServiceProvider {
         }
 
         ack.setResult(result);
-        RafProviderToUserPdu rptu = new RafProviderToUserPdu();
-        rptu.setRafStopReturn(ack);
+        RcfProviderToUserPdu rptu = new RcfProviderToUserPdu();
+        rptu.setRcfStopReturn(ack);
         provider.sendMessage(rptu);
     }
 
     @Override
     public void sendStatusReport() {
-        RafStatusReportInvocation rsri = new RafStatusReportInvocation();
+        RcfStatusReportInvocation rsri = new RcfStatusReportInvocation();
         rsri.setInvokerCredentials(provider.getNonBindCredentials());
 
         rsri.setDeliveredFrameNumber(new IntUnsignedLong(statusReport.numFramesDelivered));
-        rsri.setErrorFreeFrameNumber(new IntUnsignedLong(statusReport.numErrorFreeFramesDelivered));
 
         rsri.setFrameSyncLockStatus(new FrameSyncLockStatus(statusReport.frameSyncLockStatus.getId()));
         rsri.setCarrierLockStatus(new CarrierLockStatus(statusReport.carrierLockStatus.getId()));
         rsri.setSubcarrierLockStatus(new CarrierLockStatus(statusReport.carrierLockStatus.getId()));
         rsri.setSymbolSyncLockStatus(new SymbolLockStatus(statusReport.symbolLockStatus.getId()));
 
-        rsri.setProductionStatus(new ccsds.sle.transfer.service.raf.structures.RafProductionStatus(
+        rsri.setProductionStatus(new ccsds.sle.transfer.service.rcf.structures.RcfProductionStatus(
                 statusReport.productionStatus.getId()));
-        RafProviderToUserPdu rptu = new RafProviderToUserPdu();
-        rptu.setRafStatusReportInvocation(rsri);
+        RcfProviderToUserPdu rptu = new RcfProviderToUserPdu();
+        rptu.setRcfStatusReportInvocation(rsri);
         provider.sendMessage(rptu);
     }
 
@@ -200,7 +198,12 @@ public class RafServiceProvider extends RacfServiceProvider {
      */
     public void sendFrame(CcsdsTime ert, FrameQuality frameQuality, int dataLinkContinuity, byte[] data, int dataOffset,
             int dataLength) {
-        RafTransferDataInvocation rtdi = new RafTransferDataInvocation();
+        if(frameQuality!=FrameQuality.good) {
+            logger.warn("Ignoring frame of quality {}", frameQuality);
+            return;
+        }
+        
+        RcfTransferDataInvocation rtdi = new RcfTransferDataInvocation();
         rtdi.setInvokerCredentials(provider.getNonBindCredentials());
         rtdi.setEarthReceiveTime(CcsdsTime.toSle(ert, sleVersion));
         if(dataOffset!=0 || data.length!=dataLength) {
@@ -209,21 +212,20 @@ public class RafServiceProvider extends RacfServiceProvider {
         rtdi.setData(new SpaceLinkDataUnit(data));
         rtdi.setAntennaId(antennaId);
         rtdi.setDataLinkContinuity(new BerInteger(dataLinkContinuity));
-        rtdi.setDeliveredFrameQuality(new ccsds.sle.transfer.service.raf.structures.FrameQuality(frameQuality.getId()));
         rtdi.setPrivateAnnotation(NULL_ANNOTATION);
 
-        RafTransferBuffer rtb = new RafTransferBuffer();
+        RcfTransferBuffer rtb = new RcfTransferBuffer();
         FrameOrNotification fon = new FrameOrNotification();
         fon.setAnnotatedFrame(rtdi);
         rtb.getFrameOrNotification().add(fon);
 
         logger.trace("Sending RafTransferBuffer {}", rtb);
-        RafProviderToUserPdu rptu = new RafProviderToUserPdu();
-        rptu.setRafTransferBuffer(rtb);
+        RcfProviderToUserPdu rptu = new RcfProviderToUserPdu();
+        rptu.setRcfTransferBuffer(rtb);
         provider.sendMessage(rptu);
     }
 
-    private void processRafParameterInvocation(RafGetParameterInvocation rafGetParameterInvocation) {
+    private void processRcfParameterInvocation(RcfGetParameterInvocation rafGetParameterInvocation) {
         // TODO Auto-generated method stub
 
     }

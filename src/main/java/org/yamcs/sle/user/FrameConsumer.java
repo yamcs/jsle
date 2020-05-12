@@ -1,10 +1,11 @@
 package org.yamcs.sle.user;
 
+import org.yamcs.sle.AntennaId;
 import org.yamcs.sle.CcsdsTime;
+import org.yamcs.sle.Constants.FrameQuality;
 import org.yamcs.sle.Constants.LockStatus;
-import org.yamcs.sle.Constants.RafProductionStatus;
+import org.yamcs.sle.Constants.ProductionStatus;
 
-import ccsds.sle.transfer.service.raf.outgoing.pdus.RafTransferDataInvocation;
 
 /**
  * consumes frames and receives notifications from the RAF service
@@ -17,9 +18,10 @@ public interface FrameConsumer {
     /**
      * Transfer frame received from the service provider
      * 
-     * @param rtdi
+     * <p>For RCF the Frame Quality will always be set to good
      */
-    void acceptFrame(RafTransferDataInvocation rtdi);
+    void acceptFrame(CcsdsTime ert, AntennaId antennaId, int dataLinkContinuity,
+            FrameQuality frameQuality, byte[] privAnn, byte[] data);
 
     /**
      * producer signals that data has been discarded due to excessive backlog
@@ -31,7 +33,7 @@ public interface FrameConsumer {
      * 
      * @param productionStatusChange
      */
-    void onProductionStatusChange(RafProductionStatus productionStatusChange);
+    void onProductionStatusChange(ProductionStatus productionStatusChange);
 
     /**
      * the service provide signals that the delivery of frames has been interrupted because
@@ -47,7 +49,5 @@ public interface FrameConsumer {
      * have been sent
      */
     void onEndOfData();
-
-    
 
 }
