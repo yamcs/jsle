@@ -32,7 +32,7 @@ fi
 if [[ -n $(git status -s) ]]; then
     git commit . -v -em"Prepare release jsle-${version}" || :
     if [ $snapshot -eq 0 ]; then
-        git tag jsle-$version
+        echo git tag jsle-$version
     fi
 fi
 
