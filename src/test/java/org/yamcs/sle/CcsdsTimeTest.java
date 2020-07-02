@@ -39,4 +39,9 @@ public class CcsdsTimeTest {
         assertEquals("2020-05-05T20:50:00.001Z", t.toString());
     }
     
+    @Test
+    public void test5() {
+        CcsdsTime t = new CcsdsTime(1, 301123456789012L);
+        assertEquals("1958-01-02T00:05:01.123456789012Z", t.toStringPico());
+    }
 }

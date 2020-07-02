@@ -38,7 +38,7 @@ fi
 
 mvn -q clean
 
-clonedir=$jslehome/distribution/target/yamcs-clone
+clonedir=$jslehome/distribution/target/jsle-clone
 
 mkdir -p $clonedir
 git clone . $clonedir
@@ -58,13 +58,13 @@ echo
 if [ $snapshot -eq 0 ]; then
     read -p "Do you want to stage $pomversion maven artifacts to Maven Central? [y/N] " yesNo
     if [[ $yesNo == 'y' ]]; then
-        mvn -f $clonedir -P yamcs-release -DskipTests deploy
+        mvn -f $clonedir -P jsle-release -DskipTests deploy
         echo 'Release the staging repository at https://oss.sonatype.org'
     fi
 else
     read -p "Do you want to publish $pomversion maven artifacts to Sonatype Snapshots? [y/N] " yesNo
     if [[ $yesNo == 'y' ]]; then
-        mvn -f $clonedir -P yamcs-release -DskipTests -DskipStaging deploy
+        mvn -f $clonedir -P jsle-release -DskipTests -DskipStaging deploy
     fi
 fi
 
