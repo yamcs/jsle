@@ -56,7 +56,7 @@ public class UdpFrameReceiver implements FrameDownlinker, Runnable {
             } else {
                 dataLinkContinuity = 0;//no frame missing
             }
-            System.out.println("sending datagram of size "+datagram.getLength());
+            logger.fine("sending datagram of size "+datagram.getLength());
             rsp.sendFrame(CcsdsTime.now(), FrameQuality.good, dataLinkContinuity, datagram.getData(), datagram.getOffset(),
                     datagram.getLength());
         }
