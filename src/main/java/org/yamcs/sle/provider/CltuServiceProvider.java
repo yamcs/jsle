@@ -172,6 +172,7 @@ public class CltuServiceProvider implements SleService {
         CltuStartReturn csr = new CltuStartReturn();
         csr.setResult(r);
         csr.setInvokeId(invokeId);
+        csr.setPerformerCredentials(sleProvider.getNonBindCredentials());
         
         CltuProviderToUserPdu cptu = new CltuProviderToUserPdu();
         cptu.setCltuStartReturn(csr);
