@@ -5,7 +5,7 @@
 	<groupId>org.yamcs</groupId>
 	<artifactId>jsle</artifactId>
 	<packaging>jar</packaging>
-	<version>0.11-SNAPSHOT</version>
+	<version>0.11</version>
 	<name>jsle</name>
 	<url>https://github.com/yamcs/jsle</url>
 	<description>Java implementation for the SLE (Space Link Extension) protocol.</description>
