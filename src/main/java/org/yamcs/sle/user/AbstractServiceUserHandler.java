@@ -76,9 +76,9 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     Map<Integer, CompletableFuture<?>> pendingInvocations = new HashMap<>();
 
     protected AuthLevel authLevel = AuthLevel.ALL;
-    
+
     final protected SleAttributes attr;
-    
+
     int sleVersion = 4;
 
     public int getVersionNumber() {
@@ -105,7 +105,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
             InputStream is = new ByteBufInputStream((ByteBuf) msg);
             BerTag berTag = new BerTag();
             berTag.decode(is);
-            
+
             if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 100)) {
                 SleBindInvocation bindInvocation = new SleBindInvocation();
                 bindInvocation.decode(is, false);
@@ -174,10 +174,9 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
      * @return
      */
     public abstract CompletableFuture<SleParameter> getParameter(int parameterId);
-    
 
     public boolean isConnected() {
-        return channelHandlerContext.channel().isActive();
+        return channelHandlerContext != null && channelHandlerContext.channel().isActive();
     }
 
     /**
@@ -190,8 +189,6 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         channelHandlerContext.executor().execute(() -> sendBind(cf));
         return cf;
     }
-
-  
 
     /**
      * request that the SLE service provider stop service provision and production.
@@ -239,7 +236,9 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     }
 
     public void shutdown() {
-        channelHandlerContext.close();
+        if (channelHandlerContext != null) {
+            channelHandlerContext.close();
+        }
     }
 
     // this method is not really safe because it's not called on the netty thread
@@ -308,7 +307,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     protected void processBindInvocation(SleBindInvocation bindInvocation) {
         verifyBindCredentials(bindInvocation.getInvokerCredentials());
         logger.debug("ignoring bind invocation {}", bindInvocation);
-        
+
     }
 
     protected void processUnbindInvocation(SleUnbindInvocation unbindInvocation) {
@@ -467,7 +466,6 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     public State getState() {
         return state;
     }
-    
 
     protected abstract ApplicationIdentifier getApplicationIdentifier();
 

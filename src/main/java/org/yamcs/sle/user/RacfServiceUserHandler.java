@@ -63,9 +63,4 @@ public abstract class RacfServiceUserHandler extends AbstractServiceUserHandler 
     public void removeMonitor(RacfSleMonitor monitor) {
         monitors.remove(monitor);
     }
-
-
-    public boolean isConnected() {
-        return channelHandlerContext.channel().isActive();
-    }
 }

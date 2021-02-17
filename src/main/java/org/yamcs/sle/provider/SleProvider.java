@@ -170,7 +170,7 @@ public class SleProvider extends ChannelInboundHandlerAdapter {
     }
 
     public boolean isConnected() {
-        return channelHandlerContext.channel().isActive();
+        return channelHandlerContext != null && channelHandlerContext.channel().isActive();
     }
 
     public void shutdown() {
