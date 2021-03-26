@@ -46,7 +46,7 @@ public class UdpCltuUplinker implements CltuUplinker {
 
         DatagramPacket dtg = new DatagramPacket(cltuData, cltuData.length, address, port);
         ur.startTime = CcsdsTime.now();
-        long durationNs = cltuData.length * 8 * 1000_000_000 / bitrate;
+        long durationNs = cltuData.length * 8L * 1000_000_000L / bitrate;
         int millis = (int) (durationNs / 1000_000);
         int nanos = (int) (durationNs % 1000_000);
 
