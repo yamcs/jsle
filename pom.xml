@@ -227,6 +227,7 @@
 								<descriptor>distribution/jsle.descriptor.xml</descriptor>
 							</descriptors>
 							<appendAssemblyId>false</appendAssemblyId>
+                                                        <tarLongFileMode>posix</tarLongFileMode>
 						</configuration>
 						<executions>
 							<execution>
