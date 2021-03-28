@@ -84,9 +84,9 @@ public class SleUdpBridge {
         return csph;
     }
 
-    static public void printUsageAndExit() {
-        System.out.println("Usage: sle-udp-bridge.sh -c config.properties [-l logging.properties]");
-        System.exit(-1);
+    static public void printUsageAndExit(int code) {
+        System.out.println("Usage: sle-udp-bridge.sh -c bridge.properties [-l logging.properties]");
+        System.exit(code);
     }
 
     static public void main(String[] args) throws Exception {
@@ -96,26 +96,26 @@ public class SleUdpBridge {
         String lfile = "logging.properties";
         for (int i = 0; i < args.length; i++) {
             if ("-h".equals(args[i]) || "-help".equals(args[i]) || "--help".equals(args[i])) {
-
+                printUsageAndExit(0);
             } else if ("-c".equals(args[i])) {
                 if (i == args.length) {
-                    printUsageAndExit();
+                    printUsageAndExit(-1);
                 }
                 cfile = args[++i];
             } else if ("-l".equals(args[i])) {
                 if (i == args.length) {
-                    printUsageAndExit();
+                    printUsageAndExit(-1);
                 }
                 lfile = args[++i];
                 if (!new File(lfile).exists()) {
                     System.err.println("File no found: "+lfile);
-                    printUsageAndExit();
+                    printUsageAndExit(-1);
                 }
             }
         }
         if (!new File(cfile).exists()) {
             System.err.println("Config file does not exist: "+cfile);
-            printUsageAndExit();
+            printUsageAndExit(-1);
         }
 
         
