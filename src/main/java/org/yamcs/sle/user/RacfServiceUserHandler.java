@@ -11,13 +11,16 @@ import org.yamcs.sle.Constants.ParameterName;
 /**
  * Implementation for the CCSDS RECOMMENDED STANDARD FOR SLE RAF SERVICE
  * CCSDS 911.1-B-4 August 2016 https://public.ccsds.org/Pubs/911x1b4.pdf
- * <p>and<p>
+ * <p>
+ * and
+ * <p>
  * CCSDS 911.1-B-4 August 2016 https://public.ccsds.org/Pubs/911x1b4.pdf
  * <p>
- * The RAF and RCF service are almost the same but slightly so different 
- * (seems like the CCSDS committee was missing from school when the lessons about code reused has been taught).
+ * The RAF and RCF service are almost the same but slightly so different
+ * 
  * <p>
  * We do however provide one common RAF/RCF interface to our users highlighting the small differences in the API.
+ * 
  * @author nm
  *
  */
