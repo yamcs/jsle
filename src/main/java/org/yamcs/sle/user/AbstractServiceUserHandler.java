@@ -360,7 +360,9 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         CltuUserToProviderPdu cutp = new CltuUserToProviderPdu();
         SleUnbindInvocation sui = new SleUnbindInvocation();
         sui.setInvokerCredentials(getNonBindCredentials());
-        sui.setUnbindReason(new UnbindReason(127));
+        // Use an unbind reason of "suspend", so that the provider
+        // knows the connection may be attempted again later.
+        sui.setUnbindReason(new UnbindReason(1));
         cutp.setCltuUnbindInvocation(sui);
         channelHandlerContext.writeAndFlush(cutp);
     }
