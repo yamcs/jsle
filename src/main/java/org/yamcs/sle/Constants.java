@@ -320,6 +320,29 @@ public class Constants {
         }
     }
 
+    public static enum UnbindReason {
+        END(0), SUSPEND(1), VERSION_NOT_SUPPORTED(2), OTHER(127);
+
+        private final int id;
+
+        private UnbindReason(int id) {
+            this.id = id;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        static public UnbindReason byId(int id) {
+            for (UnbindReason v : values()) {
+                if (v.id == id) {
+                    return v;
+                }
+            }
+            throw new IllegalArgumentException("invalid id " + id);
+        }
+    }
+
     public static String getDiagnostic(int id, String[] v) {
         if (id >= v.length) {
             return "unknown(" + id + ")";

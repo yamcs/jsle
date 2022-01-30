@@ -23,6 +23,7 @@ import org.yamcs.sle.State;
 import org.yamcs.sle.StringConverter;
 import org.yamcs.sle.Constants.ApplicationIdentifier;
 import org.yamcs.sle.Constants.ParameterName;
+import org.yamcs.sle.Constants.UnbindReason;
 
 import ccsds.sle.transfer.service.bind.types.AuthorityIdentifier;
 import ccsds.sle.transfer.service.bind.types.PortId;
@@ -31,7 +32,6 @@ import ccsds.sle.transfer.service.bind.types.SleBindReturn;
 import ccsds.sle.transfer.service.bind.types.SlePeerAbort;
 import ccsds.sle.transfer.service.bind.types.SleUnbindInvocation;
 import ccsds.sle.transfer.service.bind.types.SleUnbindReturn;
-import ccsds.sle.transfer.service.bind.types.UnbindReason;
 import ccsds.sle.transfer.service.bind.types.VersionNumber;
 import ccsds.sle.transfer.service.bind.types.SleBindReturn.Result;
 import ccsds.sle.transfer.service.cltu.incoming.pdus.CltuUserToProviderPdu;
@@ -201,9 +201,9 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         return cf;
     }
 
-    public CompletableFuture<Void> unbind() {
+    public CompletableFuture<Void> unbind(UnbindReason reason) {
         CompletableFuture<Void> cf = new CompletableFuture<>();
-        channelHandlerContext.executor().execute(() -> sendUnbind(cf));
+        channelHandlerContext.executor().execute(() -> sendUnbind(reason, cf));
         return cf;
     }
 
@@ -235,6 +235,10 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         return cf;
     }
 
+    /**
+     * Closes the SLE connection (does not send any unbind or stop first).
+     * <p>
+     */
     public void shutdown() {
         if (channelHandlerContext != null) {
             channelHandlerContext.close();
@@ -349,7 +353,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         }
     }
 
-    private void sendUnbind(CompletableFuture<Void> cf) {
+    private void sendUnbind(UnbindReason reason, CompletableFuture<Void> cf) {
         if (state != State.READY) {
             cf.completeExceptionally(new SleException("Cannot call unbind while in state " + state));
             return;
@@ -360,7 +364,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         CltuUserToProviderPdu cutp = new CltuUserToProviderPdu();
         SleUnbindInvocation sui = new SleUnbindInvocation();
         sui.setInvokerCredentials(getNonBindCredentials());
-        sui.setUnbindReason(new UnbindReason(127));
+        sui.setUnbindReason(new ccsds.sle.transfer.service.bind.types.UnbindReason(reason.getId()));
         cutp.setCltuUnbindInvocation(sui);
         channelHandlerContext.writeAndFlush(cutp);
     }

@@ -32,6 +32,9 @@ The configuration is in bridge.properties. logging.properties can be adjusted to
 To start the bridge, please launch the script:
 ./udp-sle-bridge.sh
 
+To start the bridge directly in the source repository:
+mvn exec:java
+
 
 ### Known Problems and Limitations of the SLE to UDP bridge
 * The bridge only implements online complete RAF or RCF delivery mode

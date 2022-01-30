@@ -30,6 +30,7 @@ import ccsds.sle.transfer.service.bind.types.SleBindInvocation;
 import ccsds.sle.transfer.service.bind.types.SleBindReturn;
 import ccsds.sle.transfer.service.bind.types.SlePeerAbort;
 import ccsds.sle.transfer.service.bind.types.SleUnbindInvocation;
+import ccsds.sle.transfer.service.bind.types.SleUnbindReturn;
 import ccsds.sle.transfer.service.bind.types.VersionNumber;
 import ccsds.sle.transfer.service.bind.types.SleBindReturn.Result;
 import ccsds.sle.transfer.service.common.pdus.DiagnosticScheduleStatusReport;
@@ -116,13 +117,14 @@ public class SleProvider extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        if (logger.isTraceEnabled()) {
-            logger.trace("received message: {}", msg);
-        }
+        logger.trace("received message: {}", msg);
         try {
             InputStream is = new ByteBufInputStream((ByteBuf) msg);
             BerTag berTag = new BerTag();
             berTag.decode(is);
+
+            logger.trace("berTag: {}", berTag);
+
             if (berTag.equals(BerTag.CONTEXT_CLASS, BerTag.CONSTRUCTED, 100)) {
                 SleBindInvocation bindInvocation = new SleBindInvocation();
                 bindInvocation.decode(is, false);
@@ -223,9 +225,11 @@ public class SleProvider extends ChannelInboundHandlerAdapter {
         sleService = sir.sleService;
         sleService.init(this);
 
+        changeState(State.READY);
+
         SleBindReturn.Result r = new Result();
         r.setPositive(new VersionNumber(sleVersion));
-        changeState(State.READY);
+
         SleBindReturn sbr = new SleBindReturn();
         sbr.setResult(r);
         sbr.setResponderIdentifier(new AuthorityIdentifier(responderId.getBytes(StandardCharsets.US_ASCII)));
@@ -260,6 +264,19 @@ public class SleProvider extends ChannelInboundHandlerAdapter {
         }
 
         changeState(State.UNBOUND);
+
+        SleUnbindReturn.Result r = new SleUnbindReturn.Result();
+        r.setPositive(BER_NULL);
+
+        SleUnbindReturn usbr = new SleUnbindReturn();
+        usbr.setResponderCredentials(getNonBindCredentials());
+        usbr.setResult(r);
+
+        logger.debug("sending unbind return {}", usbr);
+        RafProviderToUserPdu ptu = new RafProviderToUserPdu(); // we use RAF but it's the same message for all services
+        ptu.setRafUnbindReturn(usbr);
+        channelHandlerContext.writeAndFlush(ptu);
+
     }
 
     protected void processSleScheduleStatusReportInvocation(
