@@ -6,6 +6,7 @@ import java.io.UncheckedIOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.util.Arrays;
 
 import com.beanit.jasn1.ber.ReverseByteArrayOutputStream;
@@ -20,6 +21,8 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 public class Isp1Authentication {
+    // this is configured as authenticationDelay
+    public static final int DEFAULT_MAX_DELTA_RCV_TIME_SEC = 180;// 3 min
     public enum HashAlgorithm {
         SHA1, SHA256
     };
@@ -37,7 +40,7 @@ public class Isp1Authentication {
     int bufferSize = 128;
     // used for verifying the remote credentials, the difference in time between the received credentials and the
     // current time
-    private long maxDeltaRcvTime = 10 * 60 * 1000;// 10 min
+    private long maxDeltaRcvTimeMillis = DEFAULT_MAX_DELTA_RCV_TIME_SEC * 1000;
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(Isp1Handler.class);
 
@@ -99,7 +102,7 @@ public class Isp1Authentication {
     }
 
     public long getMaxDeltaRcvTime() {
-        return maxDeltaRcvTime;
+        return maxDeltaRcvTimeMillis;
     }
 
     /**
@@ -110,13 +113,13 @@ public class Isp1Authentication {
      *            delta time in milliseconds
      */
     public void setMaxDeltaRcvTime(long maxDeltaRcvTime) {
-        this.maxDeltaRcvTime = maxDeltaRcvTime;
+        this.maxDeltaRcvTimeMillis = maxDeltaRcvTime;
     }
 
     /**
      * Verify credentials and throw an exception if they are not correct.
      * This method uses {@link System#currentTimeMillis()} to get the time in milliseconds and compare it with the
-     * received time and {@link #maxDeltaRcvTime}.
+     * received time and {@link #maxDeltaRcvTimeMillis}.
      * 
      * @param credentials
      *            the credentials to be verified
@@ -134,8 +137,13 @@ public class Isp1Authentication {
         } catch (Exception e) {
             throw new AuthenticationException("Cannot decode provider's credentials", e);
         }
-        CcsdsTime ct = CcsdsTime.fromCcsds(cr.getTime().value);
-        if (System.currentTimeMillis() - ct.toJavaMillisec() > maxDeltaRcvTime) {
+        CcsdsTime tokenTime = CcsdsTime.fromCcsds(cr.getTime().value);
+        long currentTime = System.currentTimeMillis();
+        if (logger.isTraceEnabled()) {
+            logger.trace("Current time: {} token time:  {} maxDeltaRcvTimeMillis: {}",
+                    Instant.ofEpochMilli(currentTime), tokenTime, maxDeltaRcvTimeMillis);
+        }
+        if (currentTime - tokenTime.toJavaMillisec() > maxDeltaRcvTimeMillis) {
             throw new AuthenticationException("Received provider's credentials are too old");
         }
         if (debugAuth) {
