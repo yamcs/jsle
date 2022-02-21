@@ -1,3 +1,10 @@
+Version 0.14 released 21-Feb-2022
+- fixed one enumeration related to frame quality: erredFrameOnly -> erredFramesOnly
+
+Version 0.13 released 30-Jan-2022
+- User: allow specifying the unbind reason
+- Provider: send the bind return
+
 Version 0.12 released 28-Apr-2021
 - updated netty version to be compatible with the one used in Yamcs 5.5.0+
 
