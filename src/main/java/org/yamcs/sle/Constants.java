@@ -299,7 +299,7 @@ public class Constants {
     }
 
     public static enum RequestedFrameQuality {
-        goodFramesOnly(0), erredFrameOnly(1), allFrames(2);
+        goodFramesOnly(0), erredFramesOnly(1), allFrames(2);
         private final int id;
 
         private RequestedFrameQuality(int id) {
