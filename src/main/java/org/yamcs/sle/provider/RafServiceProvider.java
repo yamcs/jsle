@@ -3,6 +3,7 @@ package org.yamcs.sle.provider;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 
 import org.yamcs.sle.State;
 import org.yamcs.sle.Constants.LockStatus;
@@ -25,6 +26,7 @@ import ccsds.sle.transfer.service.raf.outgoing.pdus.FrameOrNotification;
 import ccsds.sle.transfer.service.raf.outgoing.pdus.RafProviderToUserPdu;
 import ccsds.sle.transfer.service.raf.outgoing.pdus.RafStartReturn;
 import ccsds.sle.transfer.service.raf.outgoing.pdus.RafStatusReportInvocation;
+import ccsds.sle.transfer.service.raf.outgoing.pdus.RafSyncNotifyInvocation;
 import ccsds.sle.transfer.service.raf.outgoing.pdus.RafTransferBuffer;
 import ccsds.sle.transfer.service.raf.outgoing.pdus.RafTransferDataInvocation;
 import ccsds.sle.transfer.service.raf.outgoing.pdus.RafTransferDataInvocation.PrivateAnnotation;
@@ -33,6 +35,7 @@ import ccsds.sle.transfer.service.raf.structures.CarrierLockStatus;
 import ccsds.sle.transfer.service.raf.structures.DiagnosticRafStart;
 import ccsds.sle.transfer.service.raf.structures.FrameSyncLockStatus;
 import ccsds.sle.transfer.service.raf.structures.SymbolLockStatus;
+import ccsds.sle.transfer.service.raf.structures.Notification;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
@@ -50,9 +53,9 @@ public class RafServiceProvider extends RacfServiceProvider {
     SleProvider provider;
     State state;
     int sleVersion;
-    FrameDownlinker frameDownlinker;
+    FrameSource frameDownlinker;
 
-    public RafServiceProvider(FrameDownlinker frameDownlinker) {
+    public RafServiceProvider(FrameSource frameDownlinker) {
         this.frameDownlinker = frameDownlinker;
         this.antennaId = new AntennaId();
         antennaId.setLocalForm(new BerOctetString("jsle-bridge".getBytes()));
@@ -63,7 +66,6 @@ public class RafServiceProvider extends RacfServiceProvider {
         this.provider = provider;
         this.state = State.READY;
         this.sleVersion = provider.getVersionNumber();
-        frameDownlinker.init(this);
     }
 
     @Override
@@ -96,28 +98,32 @@ public class RafServiceProvider extends RacfServiceProvider {
             sendNegativeStartResponse(rafStartInvocation.getInvokeId(), 1);
             return;
         }
-        int res = frameDownlinker.start();
-        if (res >= 0) {
-            logger.warn("frame downlinker returned error {} when starting", res);
-            sendNegativeStartResponse(rafStartInvocation.getInvokeId(), res);
-            return;
-        }
-        
-        state = State.ACTIVE;
-        r.setPositiveResult(BER_NULL);
+        CcsdsTime start = CcsdsTime.fromSle(rafStartInvocation.getStartTime());
+        CcsdsTime stop = CcsdsTime.fromSle(rafStartInvocation.getStopTime());
 
-        RafStartReturn rsr = new RafStartReturn();
-        rsr.setResult(r);
-        rsr.setInvokeId(rafStartInvocation.getInvokeId());
-        rsr.setPerformerCredentials(provider.getNonBindCredentials());
+        CompletableFuture<Integer> cf = frameDownlinker.start(this, start, stop);
+        cf.thenAccept(res -> {
+            if (res >= 0) {
+                logger.warn("frame downlinker returned error {} when starting", res);
+                sendNegativeStartResponse(rafStartInvocation.getInvokeId(), res);
+                return;
+            }
 
-        logger.debug("Sending RafStartReturn {}", rsr);
-        RafProviderToUserPdu rptu = new RafProviderToUserPdu();
-        rptu.setRafStartReturn(rsr);
-        provider.sendMessage(rptu);
+            state = State.ACTIVE;
+            r.setPositiveResult(BER_NULL);
 
+            RafStartReturn rsr = new RafStartReturn();
+            rsr.setResult(r);
+            rsr.setInvokeId(rafStartInvocation.getInvokeId());
+            rsr.setPerformerCredentials(provider.getNonBindCredentials());
+
+            logger.debug("Sending RafStartReturn {}", rsr);
+            RafProviderToUserPdu rptu = new RafProviderToUserPdu();
+            rptu.setRafStartReturn(rsr);
+            provider.sendMessage(rptu);
+        });
     }
-    
+
     private void sendNegativeStartResponse(InvokeId invokeId, int diagnostic) {
         RafStartReturn.Result r = new RafStartReturn.Result();
         DiagnosticRafStart dcs = new DiagnosticRafStart();
@@ -125,7 +131,7 @@ public class RafServiceProvider extends RacfServiceProvider {
         r.setNegativeResult(dcs);
         RafStartReturn rsr = new RafStartReturn();
         rsr.setPerformerCredentials(provider.getNonBindCredentials());
-        
+
         logger.debug("Sending RafStartReturn {}", rsr);
         RafProviderToUserPdu rptu = new RafProviderToUserPdu();
         rptu.setRafStartReturn(rsr);
@@ -142,7 +148,7 @@ public class RafServiceProvider extends RacfServiceProvider {
         if (state == State.ACTIVE) {
             state = State.READY;
             result.setPositiveResult(BER_NULL);
-            frameDownlinker.stop();
+            frameDownlinker.stop(this);
         } else {
             logger.warn("received stop while in state {}", state);
             result.setNegativeResult(new Diagnostics(127));// other reason
@@ -175,7 +181,7 @@ public class RafServiceProvider extends RacfServiceProvider {
     }
 
     /**
-     * Called by the {@link FrameDownlinker} to send a new frame.
+     * Called by the {@link FrameSource} to send a new frame.
      * 
      * @param ert
      * @param frameQuality
@@ -203,8 +209,8 @@ public class RafServiceProvider extends RacfServiceProvider {
         RafTransferDataInvocation rtdi = new RafTransferDataInvocation();
         rtdi.setInvokerCredentials(provider.getNonBindCredentials());
         rtdi.setEarthReceiveTime(CcsdsTime.toSle(ert, sleVersion));
-        if(dataOffset!=0 || data.length!=dataLength) {
-            data = Arrays.copyOfRange(data, dataOffset, dataOffset+dataLength);
+        if (dataOffset != 0 || data.length != dataLength) {
+            data = Arrays.copyOfRange(data, dataOffset, dataOffset + dataLength);
         }
         rtdi.setData(new SpaceLinkDataUnit(data));
         rtdi.setAntennaId(antennaId);
@@ -218,6 +224,25 @@ public class RafServiceProvider extends RacfServiceProvider {
         rtb.getFrameOrNotification().add(fon);
 
         logger.trace("Sending RafTransferBuffer {}", rtb);
+        RafProviderToUserPdu rptu = new RafProviderToUserPdu();
+        rptu.setRafTransferBuffer(rtb);
+        provider.sendMessage(rptu);
+    }
+
+    public void sendEof() {
+        RafSyncNotifyInvocation rsni = new RafSyncNotifyInvocation();
+        rsni.setInvokerCredentials(provider.getNonBindCredentials());
+
+        Notification notif = new Notification();
+        notif.setEndOfData(BER_NULL);
+        rsni.setNotification(notif);
+
+        RafTransferBuffer rtb = new RafTransferBuffer();
+        FrameOrNotification fon = new FrameOrNotification();
+        fon.setSyncNotification(rsni);
+        rtb.getFrameOrNotification().add(fon);
+
+        logger.trace("Sending RafTransferBuffer(eof) {}", rtb);
         RafProviderToUserPdu rptu = new RafProviderToUserPdu();
         rptu.setRafTransferBuffer(rtb);
         provider.sendMessage(rptu);
@@ -250,6 +275,6 @@ public class RafServiceProvider extends RacfServiceProvider {
 
     @Override
     public void unbind() {
-        
+
     }
 }

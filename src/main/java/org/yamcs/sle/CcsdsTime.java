@@ -85,7 +85,7 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
      * @return the current time
      */
     static public CcsdsTime now() {
-        return fromJavaMillisec(System.currentTimeMillis());
+        return fromJavaMillis(System.currentTimeMillis());
     }
 
     /**
@@ -94,10 +94,22 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
      * @param javaTime
      * @return
      */
-    static public CcsdsTime fromJavaMillisec(long javaTime) {
+    static public CcsdsTime fromJavaMillis(long javaTime) {
         int numDays = (int) (javaTime / MS_IN_DAY) + NUM_DAYS_1958_1970;
         int msOfDay = (int) (javaTime % MS_IN_DAY);
         return new CcsdsTime(numDays, 1000_000_000L * msOfDay);
+    }
+
+    /**
+     * Converts a java time in milliseconds
+     * 
+     * @param javaTime
+     * @return
+     */
+    static public CcsdsTime fromJavaMillisPicos(long javaTime, int picos) {
+        int numDays = (int) (javaTime / MS_IN_DAY) + NUM_DAYS_1958_1970;
+        int msOfDay = (int) (javaTime % MS_IN_DAY);
+        return new CcsdsTime(numDays, 1000_000_000L * msOfDay + picos);
     }
 
     /**

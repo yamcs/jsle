@@ -3,21 +3,31 @@ package org.yamcs.sle.provider;
 import org.yamcs.sle.CcsdsTime;
 import org.yamcs.sle.Constants.ForwardDuStatus;
 
-public interface CltuUplinker {
-    
+/**
+ * Responsible with sending frames out
+ */
+public interface FrameSink {
+
     /**
-     * Called at SLE start to start
-     * 
-     * @return -1 if the result is successful. return greater or equal with 0 means error and the code will be inserted
-     *         into the specific part of the SLE start return message
+     * Called at startup
      */
-    int start();
-    
+    void startup();
+
     /**
-     * Called at SLE stop
+     * Called at shutdown
      */
-    void stop();
-    
+    void shutdown();
+
+    /**
+     * Called at SLE START invocation
+     */
+    int start(CltuServiceProvider csp);
+
+    /**
+     * Called at SLE STOP invocation
+     */
+    int stop(CltuServiceProvider csp);
+
     /**
      * uplinks the CLTU. The method should block for the duration of the uplink
      * @param cltuData

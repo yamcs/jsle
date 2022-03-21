@@ -65,8 +65,8 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
  * <li>make an implementation for {@link ServiceInitializer} which based on some configuration creates one of the
  * {@link CltuServiceProvider} or {@link RafServiceProvider} (or maybe others in the future).
  * </li>
- * <li>make an implementation of {@link CltuUplinker} which uplinks the CLTUs</li>
- * <li>make an implementation of {@link FrameDownlinker} which provides telemetry frames</li>
+ * <li>make an implementation of {@link FrameSink} which uplinks the CLTUs</li>
+ * <li>make an implementation of {@link FrameSource} which provides telemetry frames</li>
  * </ol>
  * 
  * <p>

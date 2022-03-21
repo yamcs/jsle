@@ -13,10 +13,10 @@ public class CcsdsTimeTest {
     @Test
     public void test1() {
         long t = Instant.parse("1958-01-01T00:00:00Z").toEpochMilli();
-        byte[] b = CcsdsTime.fromJavaMillisec(t).getDaySegmented();
+        byte[] b = CcsdsTime.fromJavaMillis(t).getDaySegmented();
         assertEquals("0000000000000000", ByteBufUtil.hexDump(b));
         
-        assertEquals(t, CcsdsTime.fromJavaMillisec(t).toJavaMillisec());
+        assertEquals(t, CcsdsTime.fromJavaMillis(t).toJavaMillisec());
     }
     
     @Test

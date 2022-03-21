@@ -3,6 +3,7 @@ package org.yamcs.sle.provider;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 
 import org.yamcs.sle.State;
 import org.yamcs.sle.Constants.LockStatus;
@@ -25,6 +26,7 @@ import ccsds.sle.transfer.service.rcf.outgoing.pdus.FrameOrNotification;
 import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfProviderToUserPdu;
 import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfStartReturn;
 import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfStatusReportInvocation;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfSyncNotifyInvocation;
 import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfTransferBuffer;
 import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfTransferDataInvocation;
 import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfTransferDataInvocation.PrivateAnnotation;
@@ -32,6 +34,7 @@ import ccsds.sle.transfer.service.rcf.structures.AntennaId;
 import ccsds.sle.transfer.service.rcf.structures.CarrierLockStatus;
 import ccsds.sle.transfer.service.rcf.structures.DiagnosticRcfStart;
 import ccsds.sle.transfer.service.rcf.structures.FrameSyncLockStatus;
+import ccsds.sle.transfer.service.rcf.structures.Notification;
 import ccsds.sle.transfer.service.rcf.structures.SymbolLockStatus;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
@@ -49,9 +52,9 @@ public class RcfServiceProvider extends RacfServiceProvider {
     SleProvider provider;
     State state;
     int sleVersion;
-    FrameDownlinker frameDownlinker;
+    FrameSource frameDownlinker;
 
-    public RcfServiceProvider(FrameDownlinker frameDownlinker) {
+    public RcfServiceProvider(FrameSource frameDownlinker) {
         this.frameDownlinker = frameDownlinker;
         this.antennaId = new AntennaId();
         antennaId.setLocalForm(new BerOctetString("jsle-bridge".getBytes()));
@@ -62,7 +65,6 @@ public class RcfServiceProvider extends RacfServiceProvider {
         this.provider = provider;
         this.state = State.READY;
         this.sleVersion = provider.getVersionNumber();
-        frameDownlinker.init(this);
     }
 
     @Override
@@ -95,28 +97,32 @@ public class RcfServiceProvider extends RacfServiceProvider {
             sendNegativeStartResponse(rafStartInvocation.getInvokeId(), 1);
             return;
         }
-        int res = frameDownlinker.start();
-        if (res >= 0) {
-            logger.warn("frame downlinker returned error {} when starting", res);
-            sendNegativeStartResponse(rafStartInvocation.getInvokeId(), res);
-            return;
-        }
-        
-        state = State.ACTIVE;
-        r.setPositiveResult(BER_NULL);
+        CcsdsTime start = CcsdsTime.fromSle(rafStartInvocation.getStartTime());
+        CcsdsTime stop = CcsdsTime.fromSle(rafStartInvocation.getStopTime());
 
-        RcfStartReturn rsr = new RcfStartReturn();
-        rsr.setResult(r);
-        rsr.setInvokeId(rafStartInvocation.getInvokeId());
-        rsr.setPerformerCredentials(provider.getNonBindCredentials());
+        CompletableFuture<Integer> cf = frameDownlinker.start(this, start, stop);
+        cf.thenAccept(res -> {
+            if (res >= 0) {
+                logger.warn("frame downlinker returned error {} when starting", res);
+                sendNegativeStartResponse(rafStartInvocation.getInvokeId(), res);
+                return;
+            }
 
-        logger.debug("Sending RafStartReturn {}", rsr);
-        RcfProviderToUserPdu rptu = new RcfProviderToUserPdu();
-        rptu.setRcfStartReturn(rsr);
-        provider.sendMessage(rptu);
+            state = State.ACTIVE;
+            r.setPositiveResult(BER_NULL);
 
+            RcfStartReturn rsr = new RcfStartReturn();
+            rsr.setResult(r);
+            rsr.setInvokeId(rafStartInvocation.getInvokeId());
+            rsr.setPerformerCredentials(provider.getNonBindCredentials());
+
+            logger.debug("Sending RafStartReturn {}", rsr);
+            RcfProviderToUserPdu rptu = new RcfProviderToUserPdu();
+            rptu.setRcfStartReturn(rsr);
+            provider.sendMessage(rptu);
+        });
     }
-    
+
     private void sendNegativeStartResponse(InvokeId invokeId, int diagnostic) {
         RcfStartReturn.Result r = new RcfStartReturn.Result();
         DiagnosticRcfStart dcs = new DiagnosticRcfStart();
@@ -124,7 +130,7 @@ public class RcfServiceProvider extends RacfServiceProvider {
         r.setNegativeResult(dcs);
         RcfStartReturn rsr = new RcfStartReturn();
         rsr.setPerformerCredentials(provider.getNonBindCredentials());
-        
+
         logger.debug("Sending RafStartReturn {}", rsr);
         RcfProviderToUserPdu rptu = new RcfProviderToUserPdu();
         rptu.setRcfStartReturn(rsr);
@@ -132,6 +138,7 @@ public class RcfServiceProvider extends RacfServiceProvider {
     }
 
     protected void processSleStopInvocation(SleStopInvocation sleStopInvocation) {
+
         logger.debug("Received SleStopInvocation {}", sleStopInvocation);
         SleAcknowledgement ack = new SleAcknowledgement();
 
@@ -141,7 +148,7 @@ public class RcfServiceProvider extends RacfServiceProvider {
         if (state == State.ACTIVE) {
             state = State.READY;
             result.setPositiveResult(BER_NULL);
-            frameDownlinker.stop();
+            frameDownlinker.stop(this);
         } else {
             logger.warn("received stop while in state {}", state);
             result.setNegativeResult(new Diagnostics(127));// other reason
@@ -173,7 +180,7 @@ public class RcfServiceProvider extends RacfServiceProvider {
     }
 
     /**
-     * Called by the {@link FrameDownlinker} to send a new frame.
+     * Called by the {@link FrameSource} to send a new frame.
      * 
      * @param ert
      * @param frameQuality
@@ -198,16 +205,16 @@ public class RcfServiceProvider extends RacfServiceProvider {
      */
     public void sendFrame(CcsdsTime ert, FrameQuality frameQuality, int dataLinkContinuity, byte[] data, int dataOffset,
             int dataLength) {
-        if(frameQuality!=FrameQuality.good) {
+        if (frameQuality != FrameQuality.good) {
             logger.warn("Ignoring frame of quality {}", frameQuality);
             return;
         }
-        
+
         RcfTransferDataInvocation rtdi = new RcfTransferDataInvocation();
         rtdi.setInvokerCredentials(provider.getNonBindCredentials());
         rtdi.setEarthReceiveTime(CcsdsTime.toSle(ert, sleVersion));
-        if(dataOffset!=0 || data.length!=dataLength) {
-            data = Arrays.copyOfRange(data, dataOffset, dataOffset+dataLength);
+        if (dataOffset != 0 || data.length != dataLength) {
+            data = Arrays.copyOfRange(data, dataOffset, dataOffset + dataLength);
         }
         rtdi.setData(new SpaceLinkDataUnit(data));
         rtdi.setAntennaId(antennaId);
@@ -220,6 +227,25 @@ public class RcfServiceProvider extends RacfServiceProvider {
         rtb.getFrameOrNotification().add(fon);
 
         logger.trace("Sending RafTransferBuffer {}", rtb);
+        RcfProviderToUserPdu rptu = new RcfProviderToUserPdu();
+        rptu.setRcfTransferBuffer(rtb);
+        provider.sendMessage(rptu);
+    }
+
+
+    public void sendEof() {
+        RcfSyncNotifyInvocation rsni = new RcfSyncNotifyInvocation();
+        rsni.setInvokerCredentials(provider.getNonBindCredentials());
+        Notification notif = new Notification();
+        notif.setEndOfData(BER_NULL);
+        rsni.setNotification(notif);
+
+        RcfTransferBuffer rtb = new RcfTransferBuffer();
+        FrameOrNotification fon = new FrameOrNotification();
+        fon.setSyncNotification(rsni);
+        rtb.getFrameOrNotification().add(fon);
+
+        logger.trace("Sending RafTransferBuffer(eof) {}", rtb);
         RcfProviderToUserPdu rptu = new RcfProviderToUserPdu();
         rptu.setRcfTransferBuffer(rtb);
         provider.sendMessage(rptu);
@@ -252,6 +278,8 @@ public class RcfServiceProvider extends RacfServiceProvider {
 
     @Override
     public void unbind() {
-        
+
     }
+
+
 }

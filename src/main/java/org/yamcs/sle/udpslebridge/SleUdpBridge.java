@@ -127,6 +127,9 @@ public class SleUdpBridge {
         Properties props = new Properties();
         props.load(new FileInputStream(cfile));
         try {
+            FrameSources.init(props);
+            FrameSinks.init(props);
+
             SleUdpBridge bridge = new SleUdpBridge(props);
             bridge.start();
         } catch (ConfigurationException e) {

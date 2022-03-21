@@ -6,7 +6,8 @@ import java.util.logging.Logger;
 
 import org.yamcs.sle.Constants.ApplicationIdentifier;
 import org.yamcs.sle.provider.CltuServiceProvider;
-import org.yamcs.sle.provider.CltuUplinker;
+import org.yamcs.sle.provider.FrameSink;
+import org.yamcs.sle.provider.FrameSource;
 import org.yamcs.sle.provider.RafServiceProvider;
 import org.yamcs.sle.provider.RcfServiceProvider;
 import org.yamcs.sle.provider.ServiceInitializer;
@@ -23,7 +24,6 @@ public class BridgeServiceInitializer implements ServiceInitializer {
     @Override
     public ServiceInitResult getServiceInstance(String initiatorId, String responderPortId, ApplicationIdentifier appId,
             String sii) {
-        System.out.println("props: "+properties);
         // look for an entry where auth.x.initiatorId = initiatorId and return x
         Optional<String> x = properties.entrySet().stream()
                 .filter(e -> sii.equals(e.getValue())
@@ -70,28 +70,38 @@ public class BridgeServiceInitializer implements ServiceInitializer {
     }
 
     private ServiceInitResult createRafProvider(String id) {
-        int port = Integer.valueOf(properties.getProperty("service."+id+".udpPort"));
-        int maxFrameLength = Integer.valueOf(properties.getProperty("service."+id+".maxFrameLength", "1115"));
-        RafServiceProvider rsp = new RafServiceProvider(new UdpFrameReceiver(port, maxFrameLength));
+        RafServiceProvider rsp = new RafServiceProvider(getFrameSource(id));
         return positiveResponse(id, rsp);
     }
     
     private ServiceInitResult createRcfProvider(String id) {
-        int port = Integer.valueOf(properties.getProperty("service."+id+".udpPort"));
-        int maxFrameLength = Integer.valueOf(properties.getProperty("service."+id+".maxFrameLength", "1115"));
-        RcfServiceProvider rsp = new RcfServiceProvider(new UdpFrameReceiver(port, maxFrameLength));
+        RcfServiceProvider rsp = new RcfServiceProvider(getFrameSource(id));
         return positiveResponse(id, rsp);
     }
 
     private ServiceInitResult createCltuProvider(String id) {
-        String hostname = properties.getProperty("service."+id+".udpHost");
-        int port = Integer.valueOf(properties.getProperty("service."+id+".udpPort"));
-        int bitrate = Integer.valueOf(properties.getProperty("service."+id+".bitrate"));
-        CltuUplinker cltuUplinker = new UdpCltuUplinker(hostname, port, bitrate);
-
-        CltuServiceProvider csp = new CltuServiceProvider(cltuUplinker);
+        CltuServiceProvider csp = new CltuServiceProvider(getFrameSink(id));
         return positiveResponse(id, csp);
     }
+
+    private FrameSource getFrameSource(String id) {
+        String sid = Util.getProperty(properties, "service." + id + ".fsource");
+        FrameSource frameSource = FrameSources.getSource(sid);
+        if (frameSource == null) {
+            throw new ConfigurationException("Unknown frame source '" + sid + "'");
+        }
+        return frameSource;
+    }
+
+    private FrameSink getFrameSink(String id) {
+        String sid = Util.getProperty(properties, "service." + id + ".fsink");
+        FrameSink frameSink = FrameSinks.getSink(sid);
+        if (frameSink == null) {
+            throw new ConfigurationException("Unknown frame source '" + sid + "'");
+        }
+        return frameSink;
+    }
+
 
     private ServiceInitResult positiveResponse(String id, SleService service) {
         ServiceInitResult r = new ServiceInitResult();

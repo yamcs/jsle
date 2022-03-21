@@ -12,7 +12,7 @@ import org.yamcs.sle.Constants.FrameQuality;
  */
 public abstract class RacfServiceProvider implements SleService {
     /**
-     * Called by the {@link FrameDownlinker} to send a new frame.
+     * Called by the {@link FrameSource} to send a new frame.
      * 
      * @param ert
      * @param frameQuality
@@ -37,4 +37,9 @@ public abstract class RacfServiceProvider implements SleService {
      */
     public abstract void sendFrame(CcsdsTime ert, FrameQuality frameQuality, int dataLinkContinuity, byte[] data, int dataOffset,
             int dataLength);
+
+    /**
+     * Called by the {@link FrameSource} to signal the end of data (used for offline instances)
+     */
+    public abstract void sendEof();
 }

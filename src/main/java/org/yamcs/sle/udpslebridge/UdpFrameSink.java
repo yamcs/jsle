@@ -1,43 +1,52 @@
 package org.yamcs.sle.udpslebridge;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.yamcs.sle.CcsdsTime;
 import org.yamcs.sle.Constants.ForwardDuStatus;
-import org.yamcs.sle.provider.CltuUplinker;
+import org.yamcs.sle.provider.CltuServiceProvider;
+import org.yamcs.sle.provider.FrameSink;
 
 import io.netty.buffer.ByteBufUtil;
 
-public class UdpCltuUplinker implements CltuUplinker {
-    static Logger logger = Logger.getLogger(UdpFrameReceiver.class.getName());
+public class UdpFrameSink implements FrameSink {
+    static Logger logger = Logger.getLogger(UdpFrameSource.class.getName());
 
-    String hostname;
-    int port;
-    int bitrate;
+    final String hostname;
+    final int port;
+    final int bitrate;
     InetAddress address;
     DatagramSocket socket;
+    String id;
 
-    public UdpCltuUplinker(String hostname, int port, int bitrate) {
+    public UdpFrameSink(String hostname, int port, int bitrate) {
         this.hostname = hostname;
         this.port = port;
         this.bitrate = bitrate;
     }
 
+    public UdpFrameSink(Properties properties, String id) {
+        this.hostname = Util.getProperty(properties, "fsink." + id + ".host");
+        this.port = Integer.valueOf(Util.getProperty(properties, "fsink." + id + ".port"));
+        this.bitrate = Integer.valueOf(properties.getProperty("fsink." + id + ".bitrate", "10000"));
+    }
+
     @Override
-    public int start() {
+    public void startup() {
         try {
             address = InetAddress.getByName(hostname);
             socket = new DatagramSocket();
         } catch (IOException e) {
             logger.warning(e.toString());
-            return 1;// unable to comply
+            throw new UncheckedIOException(e);
         }
-        return -1;// ok
     }
 
     @Override
@@ -74,10 +83,19 @@ public class UdpCltuUplinker implements CltuUplinker {
     }
 
     @Override
-    public void stop() {
+    public void shutdown() {
         if (socket != null) {
             socket.close();
         }
     }
 
+    @Override
+    public int start(CltuServiceProvider csp) {
+        return -1;// ok
+    }
+
+    @Override
+    public int stop(CltuServiceProvider csp) {
+        return -1; // ok
+    }
 }

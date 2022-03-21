@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.yamcs.sle.CcsdsTime;
 import org.yamcs.sle.State;
-import org.yamcs.sle.provider.CltuUplinker.UplinkResult;
+import org.yamcs.sle.provider.FrameSink.UplinkResult;
 
 import com.beanit.jasn1.ber.BerTag;
 import com.beanit.jasn1.ber.types.BerInteger;
@@ -55,15 +55,16 @@ import static org.yamcs.sle.Constants.*;
  * 
  * <p>
  * 
- * This class implements queueing for CLTUs and it relies on a {@link CltuUplinker} to uplink the CLTUs one by one.
+ * This class implements queueing for CLTUs and it relies on a {@link FrameSink} to uplink the CLTUs one by one.
  * 
  * <p>
  * Due to the java 8 limitations the uplink of the timed CLTUs (those with a defined earliestTransmissionTime) is not
- * very precise - with the current implementation it will be probably sent 1-2 milliseconds later than the time specified.
+ * very precise - with the current implementation it will be probably sent 1-2 milliseconds later than the time
+ * specified.
  * If better precision is required, this has to be changed to send the CLTU a few milliseconds in
- * advance together with the time and the {@link CltuUplinker} should take care of the exact transmission start.
+ * advance together with the time and the {@link FrameSink} should take care of the exact transmission start.
  * <p>
- * In any case the {@link CltuUplinker} has to return the time when the CLTU has been eventually radiated.
+ * In any case the {@link FrameSink} has to return the time when the CLTU has been eventually radiated.
  * 
  * @author nm
  *
@@ -71,7 +72,7 @@ import static org.yamcs.sle.Constants.*;
 public class CltuServiceProvider implements SleService {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(CltuServiceProvider.class);
 
-    CltuUplinker cltuUplinker;
+    FrameSink cltuUplinker;
     private final CltuServiceState cltuStatusReport = new CltuServiceState();
 
     PriorityQueue<TimedQueuedCltu> timedCltus = new PriorityQueue<TimedQueuedCltu>();
@@ -87,8 +88,8 @@ public class CltuServiceProvider implements SleService {
     Thread queueRunner;
     int sleVersion;
 
-    public CltuServiceProvider(CltuUplinker cltuUplinker) {
-        this.cltuUplinker = cltuUplinker;
+    public CltuServiceProvider(FrameSink frameSink) {
+        this.cltuUplinker = frameSink;
     }
 
     @Override
@@ -132,20 +133,20 @@ public class CltuServiceProvider implements SleService {
             logger.warn("wrong state {} for start invocation", state);
             sendNegativeStartReturn(cltuStartInvocation.getInvokeId(), 1);
             return;
-        } 
-        int x = cltuUplinker.start();
-        if(x>0) {
+        }
+        int x = cltuUplinker.start(this);
+        if (x > 0) {
             logger.warn("Cltu uplinker returned error {}", x);
             sendNegativeStartReturn(cltuStartInvocation.getInvokeId(), 1);
             return;
-        } 
-        
+        }
+
         state = State.ACTIVE;
         cltuStatusReport.prodStatus = CltuProductionStatus.operational;
         CltuStartReturn.Result.PositiveResult pr = new CltuStartReturn.Result.PositiveResult();
         pr.setStartRadiationTime(CcsdsTime.toSle(CcsdsTime.now(), sleVersion));
         pr.setStopRadiationTime(COND_TIME_UNDEFINED);
-        
+
         CltuStartReturn.Result r = new CltuStartReturn.Result();
         r.setPositiveResult(pr);
         expectedCltuId = cltuStartInvocation.getFirstCltuIdentification().intValue();
@@ -173,12 +174,12 @@ public class CltuServiceProvider implements SleService {
         csr.setResult(r);
         csr.setInvokeId(invokeId);
         csr.setPerformerCredentials(sleProvider.getNonBindCredentials());
-        
+
         CltuProviderToUserPdu cptu = new CltuProviderToUserPdu();
         cptu.setCltuStartReturn(csr);
         sleProvider.sendMessage(cptu);
     }
-    
+
     private void processTransferDataInvocation(CltuTransferDataInvocation cltuTransferDataInvocation) {
         logger.debug("Received CltuTransferDataInvocation {}", cltuTransferDataInvocation);
         sleProvider.verifyNonBindCredentials(cltuTransferDataInvocation.getInvokerCredentials());
@@ -247,7 +248,14 @@ public class CltuServiceProvider implements SleService {
             queueRunner.interrupt();
             state = State.READY;
             cltuStatusReport.prodStatus = CltuProductionStatus.configured;
-            result.setPositiveResult(BER_NULL);
+
+            int x = cltuUplinker.stop(this);
+            if (x > 0) {
+                logger.warn("Cltu uplinker returned error {}", x);
+                result.setNegativeResult(new Diagnostics(x));
+            } else {
+                result.setPositiveResult(BER_NULL);
+            }
         } else {
             logger.warn("received stop while in state {}", state);
             result.setNegativeResult(new Diagnostics(127));// other reason
