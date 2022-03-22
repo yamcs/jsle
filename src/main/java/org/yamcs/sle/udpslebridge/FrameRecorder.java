@@ -18,12 +18,12 @@ import java.util.TimeZone;
  * rootDir/yyyy-mm-dd/hh
  * <p>
  * The data format is:
- * <il>
+ * <ul>
  * <li>4 bytes length of time + frame data</li>
  * <li>8 bytes UNIX time milliseconds</li>
  * <li>4 bytes time picoseconds (currently set to 0)</li>
  * <li>frame data</li>
- * 
+ * </ul>
  * Not thread safe!
  */
 public class FrameRecorder {
