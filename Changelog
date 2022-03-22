@@ -1,3 +1,6 @@
+Version 0.15 released 22-Mar-2022
+- implemented offline RAF/RCF retrieval for the UDP to SLE bridge
+
 Version 0.14 released 21-Feb-2022
 - fixed one enumeration related to frame quality: erredFrameOnly -> erredFramesOnly
 

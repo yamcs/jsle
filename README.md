@@ -37,9 +37,8 @@ mvn exec:java
 
 
 ### Known Problems and Limitations of the SLE to UDP bridge
-* The bridge only implements online complete RAF or RCF delivery mode
 * RCF works effectively as RAF, no filtering on VCID is performed by the provider
-* Two different clients can bind the the same Service, but starting the RAF or RCF will fail for the second client because it will start a second UDP server on the same port
+
 
 
 
