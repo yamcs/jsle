@@ -253,7 +253,6 @@ public class RcfServiceProvider extends RacfServiceProvider {
 
     private void processRcfParameterInvocation(RcfGetParameterInvocation rafGetParameterInvocation) {
         // TODO Auto-generated method stub
-
     }
 
     static class StatusReport {
@@ -273,13 +272,11 @@ public class RcfServiceProvider extends RacfServiceProvider {
 
     @Override
     public void abort() {
-        frameDownlinker.shutdown();
+        // do nothing
     }
 
     @Override
     public void unbind() {
-
+        // do nothing
     }
-
-
 }

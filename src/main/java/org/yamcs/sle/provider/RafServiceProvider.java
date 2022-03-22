@@ -270,11 +270,11 @@ public class RafServiceProvider extends RacfServiceProvider {
 
     @Override
     public void abort() {
-        frameDownlinker.shutdown();
+        // do nothing
     }
 
     @Override
     public void unbind() {
-
+        // do nothing
     }
 }
