@@ -35,6 +35,7 @@ import ccsds.sle.transfer.service.raf.structures.CarrierLockStatus;
 import ccsds.sle.transfer.service.raf.structures.DiagnosticRafStart;
 import ccsds.sle.transfer.service.raf.structures.FrameSyncLockStatus;
 import ccsds.sle.transfer.service.raf.structures.SymbolLockStatus;
+import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfProviderToUserPdu;
 import ccsds.sle.transfer.service.raf.structures.Notification;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
@@ -54,6 +55,8 @@ public class RafServiceProvider extends RacfServiceProvider {
     State state;
     int sleVersion;
     FrameSource frameDownlinker;
+    private final RafParameters rafParameters = new RafParameters();
+    
 
     public RafServiceProvider(FrameSource frameDownlinker) {
         this.frameDownlinker = frameDownlinker;
@@ -215,7 +218,7 @@ public class RafServiceProvider extends RacfServiceProvider {
         rtdi.setData(new SpaceLinkDataUnit(data));
         rtdi.setAntennaId(antennaId);
         rtdi.setDataLinkContinuity(new BerInteger(dataLinkContinuity));
-        rtdi.setDeliveredFrameQuality(new ccsds.sle.transfer.service.raf.structures.FrameQuality(frameQuality.getId()));
+        rtdi.setDeliveredFrameQuality(new ccsds.sle.transfer.service.raf.structures.FrameQuality(frameQuality.id()));
         rtdi.setPrivateAnnotation(NULL_ANNOTATION);
 
         RafTransferBuffer rtb = new RafTransferBuffer();
@@ -249,8 +252,11 @@ public class RafServiceProvider extends RacfServiceProvider {
     }
 
     private void processRafParameterInvocation(RafGetParameterInvocation rafGetParameterInvocation) {
-        // TODO Auto-generated method stub
+        logger.debug("Received RafGetParameterInvocation {}", rafGetParameterInvocation);
+        RafProviderToUserPdu rptu = new RafProviderToUserPdu();
+        rptu.setRafGetParameterReturn(rafParameters.processGetInvocation(rafGetParameterInvocation));
 
+        provider.sendMessage(rptu);
     }
 
     static class StatusReport {

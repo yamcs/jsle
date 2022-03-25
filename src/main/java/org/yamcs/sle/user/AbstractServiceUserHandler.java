@@ -10,19 +10,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 import com.beanit.jasn1.ber.BerTag;
 
 import org.yamcs.sle.AuthLevel;
 import org.yamcs.sle.Constants;
 import org.yamcs.sle.Isp1Authentication;
+import org.yamcs.sle.ParameterName;
 import org.yamcs.sle.SleParameter;
 import org.yamcs.sle.SleException;
 import org.yamcs.sle.SleMonitor;
 import org.yamcs.sle.State;
 import org.yamcs.sle.StringConverter;
 import org.yamcs.sle.Constants.ApplicationIdentifier;
-import org.yamcs.sle.Constants.ParameterName;
 import org.yamcs.sle.Constants.UnbindReason;
 
 import ccsds.sle.transfer.service.bind.types.AuthorityIdentifier;
@@ -80,6 +81,8 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     final protected SleAttributes attr;
 
     int sleVersion = 4;
+
+    int returnTimeoutSec = 30;
 
     public int getVersionNumber() {
         return sleVersion;
@@ -151,10 +154,18 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         this.authLevel = authLevel;
     }
 
+    /**
+     * Set the maximum time (in seconds) to wait for a return to a call
+     */
+    public void setReturnTimeoutSec(int returnTimeoutSec) {
+        this.returnTimeoutSec = returnTimeoutSec;
+    }
+
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
         this.channelHandlerContext = ctx;
     }
+
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -364,7 +375,7 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         CltuUserToProviderPdu cutp = new CltuUserToProviderPdu();
         SleUnbindInvocation sui = new SleUnbindInvocation();
         sui.setInvokerCredentials(getNonBindCredentials());
-        sui.setUnbindReason(new ccsds.sle.transfer.service.bind.types.UnbindReason(reason.getId()));
+        sui.setUnbindReason(new ccsds.sle.transfer.service.bind.types.UnbindReason(reason.id()));
         cutp.setCltuUnbindInvocation(sui);
         channelHandlerContext.writeAndFlush(cutp);
     }
@@ -454,6 +465,14 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
     protected InvokeId getInvokeId(CompletableFuture<?> cf) {
         InvokeId invokeId = getInvokeId();
         pendingInvocations.put(invokeId.intValue(), cf);
+        channelHandlerContext.executor().schedule(() -> {
+            boolean completed = cf.completeExceptionally(new SleException("The return from the "
+                    + "provider has not been received in the timeout period (" + returnTimeoutSec + " seconds)"));
+            if (completed) {
+                logger.debug("return timeout reached");
+                pendingInvocations.remove(invokeId.intValue());
+            }
+        }, returnTimeoutSec, TimeUnit.SECONDS);
         return invokeId;
     }
 

@@ -10,6 +10,7 @@ import org.yamcs.sle.AntennaId;
 import org.yamcs.sle.CcsdsTime;
 import org.yamcs.sle.Constants;
 import org.yamcs.sle.Isp1Authentication;
+import org.yamcs.sle.ParameterName;
 import org.yamcs.sle.SleParameter;
 import org.yamcs.sle.RacfSleMonitor;
 import org.yamcs.sle.SleException;
@@ -19,7 +20,6 @@ import org.yamcs.sle.Constants.ApplicationIdentifier;
 import org.yamcs.sle.Constants.DeliveryMode;
 import org.yamcs.sle.Constants.FrameQuality;
 import org.yamcs.sle.Constants.LockStatus;
-import org.yamcs.sle.Constants.ParameterName;
 import org.yamcs.sle.Constants.ProductionStatus;
 import org.yamcs.sle.Constants.RequestedFrameQuality;
 
@@ -211,7 +211,7 @@ public class RafServiceUserHandler extends RacfServiceUserHandler {
         CompletableFuture<RafGetParameter> cf = getFuture(rafGetParameterReturn.getInvokeId());
         RafGetParameterReturn.Result r = rafGetParameterReturn.getResult();
         if (r.getNegativeResult() != null) {
-            cf.completeExceptionally(new SleException("error getting parameter", r.getNegativeResult()));
+            cf.completeExceptionally(new SleException("Error getting parameter value", r.getNegativeResult()));
         } else {
             cf.complete(r.getPositiveResult());
         }

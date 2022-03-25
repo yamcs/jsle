@@ -33,6 +33,12 @@ public class Constants {
         BIND_DIAGNOSTIC.put(127, "other reason");
     }
 
+    public final static Map<Integer, String> DIAGNOSTIC = new HashMap<>();
+    static {
+        DIAGNOSTIC.put(100, "duplicate invokeId");
+        DIAGNOSTIC.put(127, "other reason");
+    }
+
     public final static String[] CLTU_START_DIAGNOSTICS_SPECIFIC = {
             "outOfService", "unableToComply", "productionTimeExpired", "invalidCltuId"
     };
@@ -45,6 +51,7 @@ public class Constants {
     };
 
     
+
     public final static BerNull BER_NULL = new BerNull();
     public final static SlduStatusNotification SLDU_NOTIFICATION_TRUE = new SlduStatusNotification(0);
     public final static SlduStatusNotification SLDU_NOTIFICATION_FALSE = new SlduStatusNotification(1);
@@ -92,7 +99,7 @@ public class Constants {
         }
     }
 
-    public static enum DeliveryMode {
+    public static enum DeliveryMode implements SleEnum {
         rtnTimelyOnline(0), rtnCompleteOnline(1), rtnOffline(2), fwdOnline(3), fwdOffline(4);
 
         private final int id;
@@ -101,7 +108,7 @@ public class Constants {
             this.id = id;
         }
 
-        public int getId() {
+        public int id() {
             return id;
         }
 
@@ -115,57 +122,7 @@ public class Constants {
         }
     }
 
-   
-    public static enum ParameterName {
-        acquisitionSequenceLength(201), apidList(2), bitLockRequired(3), blockingTimeoutPeriod(0), blockingUsage(1),
-        //
-        bufferSize(4), clcwGlobalVcId(202), clcwPhysicalChannel(203), copCntrFramesRepetition(300),
-        //
-        deliveryMode(6), directiveInvocation(7), directiveInvocationOnline(108), expectedDirectiveIdentification(8),
-        //
-        expectedEventInvocationIdentification(9), expectedSlduIdentification(10), fopSlidingWindow(11), fopState(12),
-        //
-        latencyLimit(15), mapList(16), mapMuxControl(17), mapMuxScheme(18), maximumFrameLength(19),
-        //
-        maximumPacketLength(20), maximumSlduLength(21), minimumDelayTime(204), minReportingCycle(301),
-        //
-        modulationFrequency(22), modulationIndex(23), notificationMode(205), permittedControlWordTypeSet(101),
-        //
-        permittedFrameQuality(302), permittedGvcidSet(24), permittedTcVcidSet(102), permittedTransmissionMode(107),
-        //
-        permittedUpdateModeSet(103), plop1IdleSequenceLength(206), plopInEffect(25), protocolAbortMode(207),
-        //
-        reportingCycle(26), requestedControlWordType(104), requestedFrameQuality(27), requestedGvcid(28),
-        //
-        requestedTcVcid(105), requestedUpdateMode(106), returnTimeoutPeriod(29), rfAvailable(30),
-        //
-        rfAvailableRequired(31), segmentHeader(32), sequCntrFramesRepetition(303), subcarrierToBitRateRatio(34),
-        //
-        throwEventOperation(304), timeoutType(35), timerInitial(36), transmissionLimit(37),
-        //
-        transmitterFrameSequenceNumber(38), vcMuxControl(39), vcMuxScheme(40), virtualChannel(41);
-
-        private final int id;
-
-        private ParameterName(int id) {
-            this.id = id;
-        }
-
-        public int getId() {
-            return id;
-        }
-
-        static public ParameterName byId(int id) {
-            for (ParameterName v : values()) {
-                if (v.id == id) {
-                    return v;
-                }
-            }
-            throw new IllegalArgumentException("invalid id " + id);
-        }
-    }
-
-    public static enum FrameQuality {
+    public static enum FrameQuality implements SleEnum {
         good(0), erred(1), undetermined(2);
         private final int id;
 
@@ -173,7 +130,7 @@ public class Constants {
             this.id = id;
         }
 
-        public int getId() {
+        public int id() {
             return id;
         }
 
@@ -320,7 +277,7 @@ public class Constants {
         }
     }
 
-    public static enum UnbindReason {
+    public static enum UnbindReason implements SleEnum {
         END(0), SUSPEND(1), VERSION_NOT_SUPPORTED(2), OTHER(127);
 
         private final int id;
@@ -329,7 +286,7 @@ public class Constants {
             this.id = id;
         }
 
-        public int getId() {
+        public int id() {
             return id;
         }
 
@@ -343,12 +300,70 @@ public class Constants {
         }
     }
 
-    public static String getDiagnostic(int id, String[] v) {
-        if (id >= v.length) {
-            return "unknown(" + id + ")";
-        } else {
-            return v[id];
+    public static enum NotificationMode implements SleEnum {
+        DEFERRED(0), IMMEDIATE(1);
+
+        private final int id;
+
+        private NotificationMode(int id) {
+            this.id = id;
+        }
+
+        public int id() {
+            return id;
+        }
+
+        static public NotificationMode byId(int id) {
+            for (NotificationMode v : values()) {
+                if (v.id == id) {
+                    return v;
+                }
+            }
+            throw new IllegalArgumentException("invalid id " + id);
         }
     }
 
+    public static enum CltuThrowEventDiagnostics implements SleEnum {
+        operationNotSupported(0), eventInvocIdOutOfSequence(1), noSuchEvent(2);
+
+        private final int id;
+
+        private CltuThrowEventDiagnostics(int id) {
+            this.id = id;
+        }
+
+        public int id() {
+            return id;
+        }
+
+        static public CltuThrowEventDiagnostics byId(int id) {
+            for (CltuThrowEventDiagnostics v : values()) {
+                if (v.id == id) {
+                    return v;
+                }
+            }
+            throw new IllegalArgumentException("invalid id " + id);
+        }
+    }
+
+    public static String getDiagnostic(int idx, String[] v) {
+        if (idx >= v.length) {
+            return "unknown(" + idx + ")";
+        } else {
+            return v[idx];
+        }
+    }
+
+    public static String getCommonDiagnostic(int id) {
+        return DIAGNOSTIC.getOrDefault(id, "unknown (" + id + ")");
+    }
+
+    public static String getEnumName(int id, SleEnum[] v) {
+        for (SleEnum se : v) {
+            if (se.id() == id) {
+                return se.name();
+            }
+        }
+        return "unknown (" + id + ")";
+    }
 }

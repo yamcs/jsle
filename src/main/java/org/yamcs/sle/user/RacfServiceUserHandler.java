@@ -3,10 +3,10 @@ package org.yamcs.sle.user;
 import java.util.concurrent.CompletableFuture;
 
 import org.yamcs.sle.Isp1Authentication;
+import org.yamcs.sle.ParameterName;
 import org.yamcs.sle.SleParameter;
 import org.yamcs.sle.RacfSleMonitor;
 import org.yamcs.sle.Constants.DeliveryMode;
-import org.yamcs.sle.Constants.ParameterName;
 
 /**
  * Implementation for the CCSDS RECOMMENDED STANDARD FOR SLE RAF SERVICE

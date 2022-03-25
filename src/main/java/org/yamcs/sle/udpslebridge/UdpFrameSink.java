@@ -10,7 +10,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.yamcs.sle.CcsdsTime;
+import org.yamcs.sle.Constants.CltuThrowEventDiagnostics;
 import org.yamcs.sle.Constants.ForwardDuStatus;
+import org.yamcs.sle.provider.CltuParameters;
 import org.yamcs.sle.provider.CltuServiceProvider;
 import org.yamcs.sle.provider.FrameSink;
 
@@ -25,6 +27,7 @@ public class UdpFrameSink implements FrameSink {
     InetAddress address;
     DatagramSocket socket;
     String id;
+    CltuParameters cltuParameters;
 
     public UdpFrameSink(String hostname, int port, int bitrate) {
         this.hostname = hostname;
@@ -81,6 +84,28 @@ public class UdpFrameSink implements FrameSink {
             return ur;
         }
     }
+    @Override
+    public CltuThrowEventDiagnostics throwEvent(int evId, byte[] eventQualifier) {
+        String evq = new String(eventQualifier);
+        logger.info("Received throw event id: " + evId + " qualifier: " + evq);
+        if (evId > 4) {
+            return CltuThrowEventDiagnostics.noSuchEvent;
+        }
+        // TODO change bitrate?
+        return null;// ok
+    }
+
+    @Override
+    public int start(CltuServiceProvider csp) {
+        this.cltuParameters = csp.getParameters();
+        // TODO set the bitrate in the cltuParameters or the other way around?
+        return -1;// ok
+    }
+
+    @Override
+    public int stop(CltuServiceProvider csp) {
+        return -1; // ok
+    }
 
     @Override
     public void shutdown() {
@@ -89,13 +114,4 @@ public class UdpFrameSink implements FrameSink {
         }
     }
 
-    @Override
-    public int start(CltuServiceProvider csp) {
-        return -1;// ok
-    }
-
-    @Override
-    public int stop(CltuServiceProvider csp) {
-        return -1; // ok
-    }
 }

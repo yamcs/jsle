@@ -19,9 +19,11 @@ import ccsds.sle.transfer.service.cltu.incoming.pdus.CltuStartInvocation;
 import ccsds.sle.transfer.service.cltu.incoming.pdus.CltuThrowEventInvocation;
 import ccsds.sle.transfer.service.cltu.incoming.pdus.CltuTransferDataInvocation;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuAsyncNotifyInvocation;
+import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuGetParameterReturn;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuProviderToUserPdu;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuStartReturn;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuStatusReportInvocation;
+import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuThrowEventReturn;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuTransferDataReturn;
 import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuTransferDataReturn.Result;
 import ccsds.sle.transfer.service.cltu.structures.BufferSize;
@@ -31,7 +33,9 @@ import ccsds.sle.transfer.service.cltu.structures.CltuLastProcessed;
 import ccsds.sle.transfer.service.cltu.structures.CltuLastProcessed.CltuProcessed;
 import ccsds.sle.transfer.service.cltu.structures.CltuNotification;
 import ccsds.sle.transfer.service.cltu.structures.CltuStatus;
+import ccsds.sle.transfer.service.cltu.structures.CurrentReportingCycle;
 import ccsds.sle.transfer.service.cltu.structures.DiagnosticCltuStart;
+import ccsds.sle.transfer.service.cltu.structures.DiagnosticCltuThrowEvent;
 import ccsds.sle.transfer.service.cltu.structures.DiagnosticCltuTransferData;
 import ccsds.sle.transfer.service.cltu.structures.NumberOfCltusProcessed;
 import ccsds.sle.transfer.service.cltu.structures.NumberOfCltusRadiated;
@@ -66,8 +70,6 @@ import static org.yamcs.sle.Constants.*;
  * <p>
  * In any case the {@link FrameSink} has to return the time when the CLTU has been eventually radiated.
  * 
- * @author nm
- *
  */
 public class CltuServiceProvider implements SleService {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(CltuServiceProvider.class);
@@ -78,6 +80,7 @@ public class CltuServiceProvider implements SleService {
     PriorityQueue<TimedQueuedCltu> timedCltus = new PriorityQueue<TimedQueuedCltu>();
     BlockingQueue<QueuedCltu> cltus = new LinkedBlockingQueue<QueuedCltu>();
     private long minimumDelayTimeMicrosec;
+    private final CltuParameters cltuParameters = new CltuParameters();
 
     int expectedCltuId;
     State state;
@@ -223,7 +226,7 @@ public class CltuServiceProvider implements SleService {
             } else {
                 cltus.add(qc);
             }
-            expectedCltuId++;
+            cltuParameters.setExpectedCltuId(++expectedCltuId);
         } else {
             DiagnosticCltuTransferData d = new DiagnosticCltuTransferData();
             d.setSpecific(new BerInteger(result));
@@ -269,11 +272,41 @@ public class CltuServiceProvider implements SleService {
 
     private void processThrowEventInvocation(CltuThrowEventInvocation cltuThrowEventInvocation) {
         logger.debug("Received CltuThrowEventInvocation {}", cltuThrowEventInvocation);
+        int evId = cltuThrowEventInvocation.getEventIdentifier().intValue();
+        byte[] eventQualifier = cltuThrowEventInvocation.getEventQualifier().value;
+        CltuThrowEventReturn.Result res = new CltuThrowEventReturn.Result();
+        
+        CltuThrowEventDiagnostics cted = cltuUplinker.throwEvent(evId, eventQualifier);
+        if (cted == null) {
+            res.setPositiveResult(BER_NULL);
+        } else {
+            DiagnosticCltuThrowEvent diag = new DiagnosticCltuThrowEvent();
+            diag.setSpecific(new BerInteger(cted.id()));
+            res.setNegativeResult(diag);
+        }
 
+        CltuThrowEventReturn ret = new CltuThrowEventReturn();
+        ret.setPerformerCredentials(sleProvider.getNonBindCredentials());
+        ret.setInvokeId(cltuThrowEventInvocation.getInvokeId());
+        ret.setEventInvocationIdentification(cltuThrowEventInvocation.getEventInvocationIdentification());
+        ret.setResult(res);
+        CltuProviderToUserPdu cptu = new CltuProviderToUserPdu();
+        cptu.setCltuThrowEventReturn(ret);
+        sleProvider.sendMessage(cptu);
     }
 
     private void processGetParameterInvocation(CltuGetParameterInvocation cltuGetParameterInvocation) {
         logger.debug("Received CltuGetParameterInvocation {}", cltuGetParameterInvocation);
+        CltuGetParameterReturn ret = new CltuGetParameterReturn();
+        ret.setPerformerCredentials(sleProvider.getNonBindCredentials());
+        ret.setInvokeId(cltuGetParameterInvocation.getInvokeId());
+        CltuGetParameterReturn.Result res = cltuParameters.getParameter(cltuGetParameterInvocation.getCltuParameter());
+
+        ret.setResult(res);
+
+        CltuProviderToUserPdu cptu = new CltuProviderToUserPdu();
+        cptu.setCltuGetParameterReturn(ret);
+        sleProvider.sendMessage(cptu);
     }
 
     /**
@@ -489,6 +522,22 @@ public class CltuServiceProvider implements SleService {
     @Override
     public State getState() {
         return state;
+    }
+
+    public int getExpectedCltuId() {
+        return expectedCltuId;
+    }
+
+    public int getExpectedEventInvocationId() {
+        return 0;// TODO
+    }
+
+    public CurrentReportingCycle getReportingCycle() {
+        return null;
+    }
+
+    public CltuParameters getParameters() {
+        return cltuParameters;
     }
 
 }

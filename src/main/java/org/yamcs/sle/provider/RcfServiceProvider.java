@@ -14,12 +14,15 @@ import com.beanit.jasn1.ber.BerTag;
 import com.beanit.jasn1.ber.types.BerInteger;
 import com.beanit.jasn1.ber.types.BerOctetString;
 
+import ccsds.sle.transfer.service.cltu.incoming.pdus.CltuGetParameterInvocation;
+import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuProviderToUserPdu;
 import ccsds.sle.transfer.service.common.pdus.SleAcknowledgement;
 import ccsds.sle.transfer.service.common.pdus.SleStopInvocation;
 import ccsds.sle.transfer.service.common.types.Diagnostics;
 import ccsds.sle.transfer.service.common.types.IntUnsignedLong;
 import ccsds.sle.transfer.service.common.types.InvokeId;
 import ccsds.sle.transfer.service.common.types.SpaceLinkDataUnit;
+import ccsds.sle.transfer.service.raf.outgoing.pdus.RafProviderToUserPdu;
 import ccsds.sle.transfer.service.rcf.incoming.pdus.RcfGetParameterInvocation;
 import ccsds.sle.transfer.service.rcf.incoming.pdus.RcfStartInvocation;
 import ccsds.sle.transfer.service.rcf.outgoing.pdus.FrameOrNotification;
@@ -53,6 +56,7 @@ public class RcfServiceProvider extends RacfServiceProvider {
     State state;
     int sleVersion;
     FrameSource frameDownlinker;
+    private final RcfParameters rcfParameters = new RcfParameters();
 
     public RcfServiceProvider(FrameSource frameDownlinker) {
         this.frameDownlinker = frameDownlinker;
@@ -251,8 +255,12 @@ public class RcfServiceProvider extends RacfServiceProvider {
         provider.sendMessage(rptu);
     }
 
-    private void processRcfParameterInvocation(RcfGetParameterInvocation rafGetParameterInvocation) {
-        // TODO Auto-generated method stub
+    private void processRcfParameterInvocation(RcfGetParameterInvocation rcfGetParameterInvocation) {
+        logger.debug("Received RcfGetParameterInvocation {}", rcfGetParameterInvocation);
+        RcfProviderToUserPdu rptu = new RcfProviderToUserPdu();
+        rptu.setRcfGetParameterReturn(rcfParameters.processGetInvocation(rcfGetParameterInvocation));
+
+        provider.sendMessage(rptu);
     }
 
     static class StatusReport {

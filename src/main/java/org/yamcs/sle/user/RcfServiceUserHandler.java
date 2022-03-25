@@ -5,11 +5,13 @@ import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
 
 import com.beanit.jasn1.ber.BerTag;
+import com.beanit.jasn1.ber.types.BerType;
 
 import org.yamcs.sle.AntennaId;
 import org.yamcs.sle.CcsdsTime;
 import org.yamcs.sle.Constants;
 import org.yamcs.sle.Isp1Authentication;
+import org.yamcs.sle.ParameterName;
 import org.yamcs.sle.SleParameter;
 import org.yamcs.sle.RacfSleMonitor;
 import org.yamcs.sle.SleException;
@@ -19,7 +21,6 @@ import org.yamcs.sle.Constants.ApplicationIdentifier;
 import org.yamcs.sle.Constants.DeliveryMode;
 import org.yamcs.sle.Constants.FrameQuality;
 import org.yamcs.sle.Constants.LockStatus;
-import org.yamcs.sle.Constants.ParameterName;
 import org.yamcs.sle.Constants.ProductionStatus;
 import org.yamcs.sle.GVCID;
 
@@ -36,6 +37,7 @@ import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfSyncNotifyInvocation;
 import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfTransferBuffer;
 import ccsds.sle.transfer.service.rcf.outgoing.pdus.RcfTransferDataInvocation;
 import ccsds.sle.transfer.service.rcf.structures.RcfParameterName;
+import ccsds.sle.transfer.service.rcf.structures.DiagnosticRcfGet;
 import ccsds.sle.transfer.service.rcf.structures.LockStatusReport;
 import ccsds.sle.transfer.service.rcf.structures.Notification;
 import io.netty.util.internal.logging.InternalLogger;
@@ -195,9 +197,19 @@ public class RcfServiceUserHandler extends RacfServiceUserHandler {
         CompletableFuture<SleParameter> cf = getFuture(rcfGetParameterReturn.getInvokeId());
         RcfGetParameterReturn.Result r = rcfGetParameterReturn.getResult();
         if (r.getNegativeResult() != null) {
-            cf.completeExceptionally(new SleException("error getting parameter", r.getNegativeResult()));
+            cf.completeExceptionally(
+                    new SleException("Error getting parameter value: " + toString(r.getNegativeResult())));
         } else {
             cf.complete(new SleParameter(r.getPositiveResult()));
+        }
+    }
+
+    private String toString(DiagnosticRcfGet diagnostic) {
+        if (diagnostic.getCommon() != null) {
+            return Constants.getCommonDiagnostic(diagnostic.getCommon().intValue());
+        } else {
+            int x = diagnostic.getSpecific().intValue();
+            return (x == 0) ? "unknown parameter" : "unknown(" + x + ")";
         }
     }
 

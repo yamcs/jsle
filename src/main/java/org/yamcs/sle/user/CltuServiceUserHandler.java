@@ -8,12 +8,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.yamcs.sle.CcsdsTime;
 import org.yamcs.sle.Constants;
 import org.yamcs.sle.Isp1Authentication;
+import org.yamcs.sle.ParameterName;
 import org.yamcs.sle.SleException;
 import org.yamcs.sle.SleParameter;
 import org.yamcs.sle.State;
 import org.yamcs.sle.StringConverter;
 import org.yamcs.sle.Constants.ApplicationIdentifier;
-import org.yamcs.sle.Constants.ParameterName;
 
 import com.beanit.jasn1.ber.BerTag;
 import com.beanit.jasn1.ber.types.BerOctetString;
@@ -33,6 +33,8 @@ import ccsds.sle.transfer.service.cltu.outgoing.pdus.CltuTransferDataReturn.Resu
 import ccsds.sle.transfer.service.cltu.structures.CltuData;
 import ccsds.sle.transfer.service.cltu.structures.CltuIdentification;
 import ccsds.sle.transfer.service.cltu.structures.CltuParameterName;
+import ccsds.sle.transfer.service.cltu.structures.DiagnosticCltuGetParameter;
+import ccsds.sle.transfer.service.cltu.structures.DiagnosticCltuThrowEvent;
 import ccsds.sle.transfer.service.cltu.structures.EventInvocationId;
 import ccsds.sle.transfer.service.common.types.Duration;
 import ccsds.sle.transfer.service.common.types.IntPosShort;
@@ -79,7 +81,7 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
     }
 
     public CompletableFuture<SleParameter> getParameter(ParameterName parameterName) {
-        return getParameter(parameterName.getId());
+        return getParameter(parameterName.id());
     }
     /**
      * Transfer a CLTU to the provider requesting immediate transmission
@@ -230,6 +232,7 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         ctei.setEventIdentifier(new IntPosShort(eventIdentifier));
         ctei.setEventInvocationIdentification(new EventInvocationId(eventInvocationId++));
         ctei.setEventQualifier(new BerOctetString(eventQualifier));
+        cutp.setCltuThrowEventInvocation(ctei);
 
         channelHandlerContext.writeAndFlush(cutp);
     }
@@ -240,7 +243,14 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         CompletableFuture<Void> cf = getFuture(cltuThrowEventReturn.getInvokeId());
         CltuThrowEventReturn.Result r = cltuThrowEventReturn.getResult();
         if (r.getNegativeResult() != null) {
-            cf.completeExceptionally(new SleException("error getting parameter", r.getNegativeResult()));
+            DiagnosticCltuThrowEvent dcte = r.getNegativeResult();
+            String err;
+            if (dcte.getCommon() != null) {
+                err = Constants.getCommonDiagnostic(dcte.getCommon().intValue());
+            } else {
+                err = Constants.getEnumName(dcte.getSpecific().intValue(), Constants.CltuThrowEventDiagnostics.values());
+            }
+            cf.completeExceptionally(new SleException(err));
         } else {
             cf.complete(null);
         }
@@ -264,7 +274,8 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         CompletableFuture<SleParameter> cf = getFuture(cltuGetParameterReturn.getInvokeId());
         CltuGetParameterReturn.Result r = cltuGetParameterReturn.getResult();
         if (r.getNegativeResult() != null) {
-            cf.completeExceptionally(new SleException("error getting parameter", r.getNegativeResult()));
+            cf.completeExceptionally(
+                    new SleException("Error getting parameter value: " + toString(r.getNegativeResult())));
         } else {
             cf.complete(new SleParameter(r.getPositiveResult()));
         }
@@ -346,4 +357,14 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
     protected ApplicationIdentifier getApplicationIdentifier() {
         return Constants.ApplicationIdentifier.fwdCltu;
     }
+
+    private String toString(DiagnosticCltuGetParameter diagnostic) {
+        if (diagnostic.getCommon() != null) {
+            return Constants.getCommonDiagnostic(diagnostic.getCommon().intValue());
+        } else {
+            int x = diagnostic.getSpecific().intValue();
+            return (x == 0) ? "unknown parameter" : "unknown(" + x + ")";
+        }
+    }
+
 }

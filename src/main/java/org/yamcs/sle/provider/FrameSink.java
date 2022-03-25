@@ -1,6 +1,7 @@
 package org.yamcs.sle.provider;
 
 import org.yamcs.sle.CcsdsTime;
+import org.yamcs.sle.Constants.CltuThrowEventDiagnostics;
 import org.yamcs.sle.Constants.ForwardDuStatus;
 
 /**
@@ -34,10 +35,21 @@ public interface FrameSink {
      * @return
      */
     UplinkResult uplink(byte[] cltuData);
-    
+
+    /**
+     * Called when a throw event invocation is received.
+     * 
+     * @return - null return means ok, otherwise return the error
+     */
+    CltuThrowEventDiagnostics throwEvent(int evId, byte[] eventQualifier);
+
     public static class UplinkResult {
         public CcsdsTime startTime;
         public CcsdsTime stopTime;
         public ForwardDuStatus cltuStatus;
+    }
+
+    public static class ThrowEventResult {
+        boolean ok;
     }
 }

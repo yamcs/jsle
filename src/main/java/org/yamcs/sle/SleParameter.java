@@ -4,7 +4,6 @@ import java.util.stream.Collectors;
 
 import org.yamcs.sle.Constants.DeliveryMode;
 import org.yamcs.sle.Constants.FrameQuality;
-import org.yamcs.sle.Constants.ParameterName;
 
 import ccsds.sle.transfer.service.cltu.structures.CltuGetParameter;
 import ccsds.sle.transfer.service.raf.structures.RafGetParameter;
@@ -30,7 +29,7 @@ public class SleParameter {
         Object pv;
         if (rgp.getParBufferSize() != null) {
             pn = ParameterName.bufferSize;
-            pv = rgp.getParBufferSize().getParameterValue().intValue();
+            pv = rgp.getParBufferSize().getParameterValue().longValue();
         } else if (rgp.getParDeliveryMode() != null) {
             pn = ParameterName.deliveryMode;
             pv = DeliveryMode.byId(rgp.getParDeliveryMode().getParameterValue().intValue());
@@ -38,10 +37,10 @@ public class SleParameter {
             pn = ParameterName.latencyLimit;
             ccsds.sle.transfer.service.raf.structures.RafGetParameter.ParLatencyLimit.ParameterValue ppllpv = rgp
                     .getParLatencyLimit().getParameterValue();
-            pv = ppllpv.getOnline() == null ? null : ppllpv.getOnline().intValue();
+            pv = ppllpv.getOnline() == null ? null : ppllpv.getOnline().longValue();
         } else if (rgp.getParMinReportingCycle() != null) {
             pn = ParameterName.minReportingCycle;
-            pv = rgp.getParMinReportingCycle().getParameterValue().intValue();
+            pv = rgp.getParMinReportingCycle().getParameterValue().longValue();
         } else if (rgp.getParPermittedFrameQuality() != null) {
             pn = ParameterName.permittedFrameQuality;
             pv = rgp.getParPermittedFrameQuality().getParameterValue().getRequestedFrameQuality().stream()
@@ -49,13 +48,13 @@ public class SleParameter {
         } else if (rgp.getParReportingCycle() != null) {
             pn = ParameterName.reportingCycle;
             ccsds.sle.transfer.service.raf.structures.CurrentReportingCycle c = rgp.getParReportingCycle().getParameterValue();
-            pv = c.getPeriodicReportingOn()==null?null:c.getPeriodicReportingOn().intValue();
+            pv = c.getPeriodicReportingOn() == null ? null : c.getPeriodicReportingOn().longValue();
         } else if (rgp.getParReqFrameQuality() != null) {
             pn = ParameterName.requestedFrameQuality;
             pv = FrameQuality.byId(rgp.getParReqFrameQuality().getParameterValue().intValue());
         } else if (rgp.getParReturnTimeout() != null) {
             pn = ParameterName.returnTimeoutPeriod;
-            pv = rgp.getParReturnTimeout().getParameterValue().intValue();
+            pv = rgp.getParReturnTimeout().getParameterValue().longValue();
         } else {
             throw new SleException("Unknown RafParameterGet "+rgp);
         }
@@ -69,7 +68,7 @@ public class SleParameter {
         Object pv;
         if (rgp.getParBufferSize() != null) {
             pn = ParameterName.bufferSize;
-            pv = rgp.getParBufferSize().getParameterValue().intValue();
+            pv = rgp.getParBufferSize().getParameterValue().longValue();
         } else if (rgp.getParDeliveryMode() != null) {
             pn = ParameterName.deliveryMode;
             pv = DeliveryMode.byId(rgp.getParDeliveryMode().getParameterValue().intValue());
@@ -77,23 +76,23 @@ public class SleParameter {
             pn = ParameterName.latencyLimit;
             ccsds.sle.transfer.service.rcf.structures.RcfGetParameter.ParLatencyLimit.ParameterValue ppllpv = rgp
                     .getParLatencyLimit().getParameterValue();
-            pv = ppllpv.getOnline() == null ? null : ppllpv.getOnline().intValue();
+            pv = ppllpv.getOnline() == null ? null : ppllpv.getOnline().longValue();
         } else if (rgp.getParMinReportingCycle() != null) {
             pn = ParameterName.minReportingCycle;
-            pv = rgp.getParMinReportingCycle().getParameterValue().intValue();
+            pv = rgp.getParMinReportingCycle().getParameterValue().longValue();
         } else if (rgp.getParPermittedGvcidSet() != null) {
             pn = ParameterName.permittedGvcidSet;
             pv = rgp.getParPermittedGvcidSet().getParameterValue();
         }  else if (rgp.getParReportingCycle() != null) {
             pn = ParameterName.reportingCycle;
             ccsds.sle.transfer.service.rcf.structures.CurrentReportingCycle c = rgp.getParReportingCycle().getParameterValue();
-            pv = c.getPeriodicReportingOn()==null?null:c.getPeriodicReportingOn().intValue();
+            pv = c.getPeriodicReportingOn() == null ? null : c.getPeriodicReportingOn().longValue();
         } else if (rgp.getParReqGvcId() != null) {
             pn = ParameterName.requestedGvcid;
             pv = rgp.getParReqGvcId().getParameterValue();
         } else if (rgp.getParReturnTimeout() != null) {
             pn = ParameterName.returnTimeoutPeriod;
-            pv = rgp.getParReturnTimeout().getParameterValue().intValue();
+            pv = rgp.getParReturnTimeout().getParameterValue().longValue();
         } else {
             throw new SleException("Unknown RcfParameterGet "+rgp);
         }
@@ -109,9 +108,10 @@ public class SleParameter {
             pv = cgp.getParAcquisitionSequenceLength().getParameterValue().intValue();
         } else if(cgp.getParBitLockRequired() !=null ) {
             pn = ParameterName.bitLockRequired;
-            pv = cgp.getParBitLockRequired().getParameterValue().intValue();
+            int x = cgp.getParBitLockRequired().getParameterValue().intValue();
+            pv = x == 0 ? "yes" : "no";
         } else if(cgp.getParClcwGlobalVcId() !=null ) {
-            pn = ParameterName.clcwGlobalVcId; 
+            pn = ParameterName.clcwGlobalVcId;
             pv = cgp.getParClcwGlobalVcId().getParameterValue();
         } else if(cgp.getParClcwPhysicalChannel() !=null ) {
             pn = ParameterName.clcwPhysicalChannel;
@@ -130,7 +130,7 @@ public class SleParameter {
             pv = cgp.getParMaximumCltuLength().getParameterValue().intValue();
         } else if(cgp.getParMinimumDelayTime() !=null ) {
             pn = ParameterName.minimumDelayTime;
-            pv = cgp.getParMinimumDelayTime().getParameterValue();
+            pv = cgp.getParMinimumDelayTime().getParameterValue().longValue();
         } else if(cgp.getParMinReportingCycle() !=null ) {
             pn = ParameterName.minReportingCycle;
             pv = cgp.getParMinReportingCycle().getParameterValue().intValue();
@@ -148,14 +148,15 @@ public class SleParameter {
             pv = cgp.getParPlop1IdleSequenceLength().getParameterValue().intValue();
         } else if(cgp.getParPlopInEffect() !=null ) {
             pn = ParameterName.plopInEffect;
-            pv = cgp.getParPlopInEffect().getParameterValue().intValue();
+            int x = cgp.getParPlopInEffect().getParameterValue().intValue();
+            pv = x == 0 ? "PLOP-1" : "PLOP-2";
         } else if(cgp.getParProtocolAbortMode() !=null ) {
             pn = ParameterName.protocolAbortMode;
             pv = cgp.getParProtocolAbortMode().getParameterValue().intValue();
         } else if(cgp.getParReportingCycle() !=null ) {
             pn = ParameterName.reportingCycle;
             ccsds.sle.transfer.service.cltu.structures.CurrentReportingCycle c = cgp.getParReportingCycle().getParameterValue();
-            pv = c.getPeriodicReportingOn()==null?null:c.getPeriodicReportingOn().intValue();
+            pv = c.getPeriodicReportingOn() == null ? null : c.getPeriodicReportingOn().intValue();
         } else if(cgp.getParReturnTimeout() !=null ) {
             pn = ParameterName.returnTimeoutPeriod;
             pv = cgp.getParReturnTimeout().getParameterValue();
@@ -164,7 +165,7 @@ public class SleParameter {
             pv = cgp.getParRfAvailableRequired().getParameterValue().intValue();
         } else if(cgp.getParSubcarrierToBitRateRatio() !=null ) {
             pn = ParameterName.subcarrierToBitRateRatio;
-            pv = cgp.getParSubcarrierToBitRateRatio().getParameterValue();
+            pv = cgp.getParSubcarrierToBitRateRatio().getParameterValue().intValue();
         } else {
             throw new SleException("Unknown CltuParameterGet "+cgp);
         }
