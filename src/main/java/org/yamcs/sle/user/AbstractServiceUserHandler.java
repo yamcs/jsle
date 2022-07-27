@@ -104,8 +104,9 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         if (logger.isTraceEnabled()) {
             logger.trace("received message: {}", msg);
         }
+        ByteBuf buf = (ByteBuf) msg;
         try {
-            InputStream is = new ByteBufInputStream((ByteBuf) msg);
+            InputStream is = new ByteBufInputStream(buf);
             BerTag berTag = new BerTag();
             berTag.decode(is);
 
@@ -143,6 +144,8 @@ public abstract class AbstractServiceUserHandler extends ChannelInboundHandlerAd
         } catch (IOException e) {
             logger.warn("Error decoding data", e);
             peerAbort();
+        } finally {
+            buf.release();
         }
     }
 

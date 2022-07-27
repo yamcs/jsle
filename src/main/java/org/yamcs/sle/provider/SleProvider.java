@@ -117,9 +117,11 @@ public class SleProvider extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
+
         logger.trace("received message: {}", msg);
+        ByteBuf buf = (ByteBuf) msg;
         try {
-            InputStream is = new ByteBufInputStream((ByteBuf) msg);
+            InputStream is = new ByteBufInputStream(buf);
             BerTag berTag = new BerTag();
             berTag.decode(is);
 
@@ -150,6 +152,8 @@ public class SleProvider extends ChannelInboundHandlerAdapter {
         } catch (IOException e) {
             logger.warn("Error decoding data", e);
             peerAbort();
+        } finally {
+            buf.release();
         }
     }
 

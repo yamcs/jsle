@@ -61,10 +61,13 @@ public class Isp1Handler extends ChannelDuplexHandler {
             break;
         case TYPE_TML_CONTEXT:
             handleContextMessage(ctx, buf);
+            buf.release();
             break;
         case TYPE_TML_HEARBEAT:
+            buf.release();
             break;
         default:
+            buf.release();
             throw new DecoderException("Invalid ISP1 type received " + type);
         }
 
