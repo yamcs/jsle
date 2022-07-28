@@ -1,5 +1,7 @@
-Version 0.16 
+Version 0.16 released 28-Jul-2022
 - implemented get parameter and CLTU throw event
+- fixed memory leaks caused by not freeing netty buffers at the end of the pipeline
+- fixed bug in the frame recording caused by not consistenly using UTC times for the filenames
 
 Version 0.15.1 released 22-Mar-2022
 - bugfix: the recording of frames was stopped when an online link was stopped
