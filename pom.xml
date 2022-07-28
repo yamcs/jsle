@@ -5,7 +5,7 @@
 	<groupId>org.yamcs</groupId>
 	<artifactId>jsle</artifactId>
 	<packaging>jar</packaging>
-	<version>0.16</version>
+	<version>0.17-SNAPSHOT</version>
 	<name>jsle</name>
 	<url>https://github.com/yamcs/jsle</url>
 	<description>Java implementation for the SLE (Space Link Extension) protocol.</description>
@@ -53,7 +53,7 @@
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-handler</artifactId>
-			<version>4.1.59.Final</version>
+			<version>4.1.77.Final</version>
 		</dependency>
 
 		<dependency>
