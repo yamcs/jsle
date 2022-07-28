@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
+import java.time.Instant;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -82,8 +83,8 @@ public class UdpFrameSource implements FrameSource, Runnable {
             int dataLinkContinuity;
             dataLinkContinuity = 0;// no frame missing
             logger.fine("received datagram of size " + datagram.getLength());
-            long t = System.currentTimeMillis();
-            CcsdsTime tc = CcsdsTime.fromJavaMillis(t);
+            Instant t = Instant.now();
+            CcsdsTime tc = CcsdsTime.fromUnix(t.getEpochSecond(), t.getNano());
             if (recorder != null) {
                 try {
                     recorder.recordFrame(t, datagram.getData(), datagram.getOffset(), datagram.getLength());

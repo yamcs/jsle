@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
@@ -21,7 +22,7 @@ import java.util.TimeZone;
  * <ul>
  * <li>4 bytes length of time + frame data</li>
  * <li>8 bytes UNIX time milliseconds</li>
- * <li>4 bytes time picoseconds (currently set to 0)</li>
+ * <li>4 bytes time picoseconds in millisecond</li>
  * <li>frame data</li>
  * </ul>
  * Not thread safe!
@@ -36,18 +37,24 @@ public class FrameRecorder {
         this.rootDir = Paths.get(rootDir);
     }
 
-    public void recordFrame(long time, byte[] data) throws IOException {
+    public void recordFrame(Instant time, byte[] data) throws IOException {
         recordFrame(time, data, 0, data.length);
     }
 
-    public void recordFrame(long time, byte[] data, int offset, int length) throws IOException {
+    public void recordFrame(Instant time, byte[] data, int offset, int length) throws IOException {
+        // this only works for positive seconds
+        long seconds = time.getEpochSecond();
+        int nanos = time.getNano();
+        long millis = seconds*1000 + nanos / 1000_000;
+        int picos_in_millis = (int) (1000 * (nanos % 1000_000));
+
         byte[] header = new byte[16];
         ByteBuffer bb = ByteBuffer.wrap(header);
         bb.putInt(12 + length);
-        bb.putLong(time);
-        bb.putInt(0);// picosecond time - we set it to 0 since java doesn't make it easy to get it
-        if (time < currentFileStart || time >= currentFileEnd) {
-            openNewFile(time);
+        bb.putLong(millis);
+        bb.putInt(picos_in_millis);
+        if (millis < currentFileStart || millis >= currentFileEnd) {
+            openNewFile(millis);
         }
 
         currentFile.write(header);
@@ -58,11 +65,10 @@ public class FrameRecorder {
     private void openNewFile(long t) throws IOException {
         closeCurrentFile();
 
-        Date dt = new Date(t);
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-        cal.setTime(dt);
-        String date = sdf.format(dt);
+        cal.setTime(new Date(t));
+        String date = String.format("%04d-%02d-%02d", cal.get(Calendar.YEAR), 1 + cal.get(Calendar.MONTH),
+                cal.get(Calendar.DAY_OF_MONTH));
         Path dir = rootDir.resolve(date);
         Files.createDirectories(dir);
         Path file = dir.resolve(String.format("%02d", cal.get(Calendar.HOUR_OF_DAY)));
