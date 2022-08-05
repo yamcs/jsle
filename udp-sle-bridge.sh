@@ -15,4 +15,4 @@ PRGDIR=`dirname "$PRG"`
 CLASSPATH="$PRGDIR/lib/*"
 
 export CLASSPATH
-exec java org.yamcs.sle.udpslebridge.SleUdpBridge "$@"
+exec java org.yamcs.jsle.udpslebridge.SleUdpBridge "$@"
