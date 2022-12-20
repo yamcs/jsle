@@ -140,7 +140,7 @@
 				<artifactId>exec-maven-plugin</artifactId>
 				<version>1.2.1</version>
 				<configuration>
-					<mainClass>org.yamcs.sle.udpslebridge.SleUdpBridge</mainClass>
+					<mainClass>org.yamcs.jsle.udpslebridge.SleUdpBridge</mainClass>
 					<arguments>
 						<argument>-c</argument>
 						<argument>bridge.properties</argument>
