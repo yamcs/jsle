@@ -1,3 +1,7 @@
+Version 1.0.0 released 1-Feb-2023
+- updated the pom.xml to require java 11
+- renamed the package name to avoid conflicts with the yamcs-sle package 
+
 Version 0.16 released 28-Jul-2022
 - implemented get parameter and CLTU throw event
 - fixed memory leaks caused by not freeing netty buffers at the end of the pipeline
