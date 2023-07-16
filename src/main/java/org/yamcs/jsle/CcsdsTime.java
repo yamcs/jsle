@@ -20,6 +20,7 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
 
     final private int numDays;
 
+    private static TimeProvider timeProvider = new DefaultTimeProvider();
     final private long picosecInDay;
     final static DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_INSTANT;
     final static DateTimeFormatter FORMATTER_SEC = new DateTimeFormatterBuilder().appendInstant(0).toFormatter();
@@ -84,8 +85,26 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
      * 
      * @return the current time
      */
-    static public CcsdsTime now() {
-        return fromJavaMillis(System.currentTimeMillis());
+    public static synchronized CcsdsTime now() {
+        return fromJavaMillis(timeProvider.getSystemTime());
+    }
+
+    /**
+     * Gets the current time provider.
+     *
+     * @return the time provider
+     */
+    public static synchronized TimeProvider getTimeProvider() {
+        return timeProvider;
+    }
+
+    /**
+     * Sets the time provider to use.
+     *
+     * @param provider the new time provider
+     */
+    public static synchronized void setTimeProvider(TimeProvider provider) {
+        timeProvider = provider;
     }
 
     /**
@@ -264,6 +283,7 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
     /**
      * Formats the time with up to nanosecond resolution
      */
+    @Override
     public String toString() {
         Instant inst = Instant.ofEpochSecond(((long) numDays - NUM_DAYS_1958_1970) * SEC_IN_DAY, picosecInDay / 1000);
         return FORMATTER.format(inst);
