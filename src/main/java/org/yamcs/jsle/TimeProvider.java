@@ -6,11 +6,10 @@ package org.yamcs.jsle;
 public interface TimeProvider {
 
     /**
-     * Gets the current system time, real or simulated, as a UNIX
-     * time in milliseconds.
+     * Gets the current system time as a <Code>CcsdsTime</code>.
      *
-     * @return the system time, as a UNIX time in milliseconds
+     * @return the system time, as a CCSDS time
      */
-    long getSystemTime();
+    CcsdsTime getSystemTime();
 
 }
