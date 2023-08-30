@@ -3,6 +3,8 @@ package org.yamcs.jsle;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.util.Optional;
+import java.util.ServiceLoader;
 
 import ccsds.sle.transfer.service.common.types.ConditionalTime;
 import ccsds.sle.transfer.service.common.types.Time;
@@ -20,9 +22,23 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
 
     final private int numDays;
 
+    /** An optional reference to a time provider, if supplied by the surrounding application. */
+    private static Optional<TimeProvider> timeProvider = ServiceLoader.load(TimeProvider.class).findFirst();
+
     final private long picosecInDay;
     final static DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_INSTANT;
     final static DateTimeFormatter FORMATTER_SEC = new DateTimeFormatterBuilder().appendInstant(0).toFormatter();
+
+    /**
+     * Sets the time provider to a specific optional implementation. Default scope
+     * for unit testing. This method can be used to set a time provider that is not
+     * found by the service loader.
+     *
+     * @param timeProvider an optional time provider
+     */
+    static void setTimeProvider(Optional<TimeProvider> timeProvider) {
+        CcsdsTime.timeProvider = timeProvider;
+    }
 
     public CcsdsTime(int numDays, long picosecInDay) {
         this.numDays = numDays;
@@ -81,15 +97,19 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
 
     /**
      * Gets the current time
-     * 
+     *
      * @return the current time
      */
-    static public CcsdsTime now() {
-        return fromJavaMillis(System.currentTimeMillis());
+    public static CcsdsTime now() {
+        if (timeProvider.isPresent()) {
+            return timeProvider.get().getSystemTime();
+        } else {
+            return fromJavaMillis(System.currentTimeMillis());
+        }
     }
 
     /**
-     * Converts a java time in milliseconds
+     * Converts a java time in milliseconds.
      * 
      * @param javaTime
      * @return
@@ -101,8 +121,8 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
     }
 
     /**
-     * Converts a java time in milliseconds
-     * 
+     * Converts a java time in milliseconds and picoseconds.
+     *
      * @param javaTime
      * @return
      */
@@ -250,8 +270,6 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
         return ((long) numDays - NUM_DAYS_1958_1970) * MS_IN_DAY + picosecInDay / 1000_000_000;
     }
 
-    
-
     @Override
     public int compareTo(CcsdsTime o) {
         int x = Integer.compare(numDays, o.numDays);
@@ -260,15 +278,16 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
         }
         return x;
     }
-    
+
     /**
      * Formats the time with up to nanosecond resolution
      */
+    @Override
     public String toString() {
         Instant inst = Instant.ofEpochSecond(((long) numDays - NUM_DAYS_1958_1970) * SEC_IN_DAY, picosecInDay / 1000);
         return FORMATTER.format(inst);
     }
-    
+
     /**
      * Converts to ISO8860 string with 12 digits picoseconds after dot
      * @return
