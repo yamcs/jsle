@@ -44,4 +44,12 @@ public class CcsdsTimeTest {
         CcsdsTime t = new CcsdsTime(1, 301123456789012L);
         assertEquals("1958-01-02T00:05:01.123456789012Z", t.toStringPico());
     }
+
+    @Test
+    public void test6() {
+        CcsdsTime t1 = new CcsdsTime(1, 301123456789012L);
+        byte b[] = t1.getDaySegmentedPico();
+        CcsdsTime t2 = CcsdsTime.fromCcsdsPico(b);
+        assertEquals(t1, t2);
+    }
 }

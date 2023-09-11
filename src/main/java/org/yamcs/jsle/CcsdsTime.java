@@ -169,7 +169,7 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
     public byte[] getDaySegmentedPico() {
         byte[] r = new byte[10];
         long msOfDay = picosecInDay / 1000_000_000;
-        long picoOfMillisec = picosecInDay % 1000_000;
+        long picoOfMillisec = picosecInDay % 1000_000_000;
 
         r[0] = (byte) (numDays >> 8);
         r[1] = (byte) (numDays);
@@ -223,7 +223,7 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
 
     public static Time toSle(CcsdsTime time, int sleVersion) {
         Time t = new Time();
-        if (sleVersion > 2) {
+        if (sleVersion <= 2) {
             t.setCcsdsFormat(new TimeCCSDS(time.getDaySegmented()));
         } else {
             t.setCcsdsPicoFormat(new TimeCCSDSpico(time.getDaySegmentedPico()));
@@ -252,14 +252,7 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
 
     
 
-    @Override
-    public int compareTo(CcsdsTime o) {
-        int x = Integer.compare(numDays, o.numDays);
-        if (x == 0) {
-            x = Long.compare(picosecInDay, o.picosecInDay);
-        }
-        return x;
-    }
+
     
     /**
      * Formats the time with up to nanosecond resolution
@@ -279,4 +272,39 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
         //silly we have to remove the 'Z' from the string formatted by DateTimeFormatter
         return String.format("%s.%012dZ", s.substring(0, s.length()-1), picosecInDay % 1_000_000_000_000L);
     }
+
+    @Override
+    public int compareTo(CcsdsTime o) {
+        int x = Integer.compare(numDays, o.numDays);
+        if (x == 0) {
+            x = Long.compare(picosecInDay, o.picosecInDay);
+        }
+        return x;
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + numDays;
+        result = prime * result + (int) (picosecInDay ^ (picosecInDay >>> 32));
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        CcsdsTime other = (CcsdsTime) obj;
+        if (numDays != other.numDays)
+            return false;
+        if (picosecInDay != other.picosecInDay)
+            return false;
+        return true;
+    }
+
 }
