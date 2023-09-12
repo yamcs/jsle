@@ -115,8 +115,10 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
     /**
      * Converts a UNIX time in seconds since 1970, nanoseconds in second (such as returned by gettitmeofday)
      * 
-     * @param unixSeconds seconds since 1-Jan-1970 00:00:00 (without leap seconds)
-     * @param nanosec nanoseconds in second
+     * @param unixSeconds
+     *            seconds since 1-Jan-1970 00:00:00 (without leap seconds)
+     * @param nanosec
+     *            nanoseconds in second
      * @return
      */
     static public CcsdsTime fromUnix(long unixSeconds, int nanosec) {
@@ -250,10 +252,6 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
         return ((long) numDays - NUM_DAYS_1958_1970) * MS_IN_DAY + picosecInDay / 1000_000_000;
     }
 
-    
-
-
-    
     /**
      * Formats the time with up to nanosecond resolution
      */
@@ -261,16 +259,17 @@ public class CcsdsTime implements Comparable<CcsdsTime> {
         Instant inst = Instant.ofEpochSecond(((long) numDays - NUM_DAYS_1958_1970) * SEC_IN_DAY, picosecInDay / 1000);
         return FORMATTER.format(inst);
     }
-    
+
     /**
      * Converts to ISO8860 string with 12 digits picoseconds after dot
+     * 
      * @return
      */
     public String toStringPico() {
         Instant inst = Instant.ofEpochSecond(((long) numDays - NUM_DAYS_1958_1970) * SEC_IN_DAY, picosecInDay / 1000);
         String s = FORMATTER_SEC.format(inst);
-        //silly we have to remove the 'Z' from the string formatted by DateTimeFormatter
-        return String.format("%s.%012dZ", s.substring(0, s.length()-1), picosecInDay % 1_000_000_000_000L);
+        // silly we have to remove the 'Z' from the string formatted by DateTimeFormatter
+        return String.format("%s.%012dZ", s.substring(0, s.length() - 1), picosecInDay % 1_000_000_000_000L);
     }
 
     @Override
