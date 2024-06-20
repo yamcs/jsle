@@ -56,7 +56,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
  */
 public class CltuServiceUserHandler extends AbstractServiceUserHandler {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(CltuServiceUserHandler.class);
-    int eventInvocationId = 1;
+    int eventInvocationId = 0;
 
     private volatile long cltuBufferAvailable;
 
@@ -367,4 +367,11 @@ public class CltuServiceUserHandler extends AbstractServiceUserHandler {
         }
     }
 
+    @Override
+    protected void changeState(State newState) {
+        if (newState == State.READY) {
+            eventInvocationId = 0;
+        }
+        super.changeState(newState);
+    }
 }

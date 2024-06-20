@@ -1,3 +1,7 @@
+Version 1.0.1 released 23-Feb-2024
+- update netty version 
+- fix throwEvent to start with the event-invocation-identification=0 after successfully BIND
+
 Version 1.0.0 released 1-Feb-2023
 - updated the pom.xml to require java 11
 - renamed the package name to avoid conflicts with the yamcs-sle package 
