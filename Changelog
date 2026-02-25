@@ -1,9 +1,8 @@
+Version 1.1.1 released 25-Feb-2026
+- updated Netty library to be in line with the version used by Yamcs 5.12.3
+
 Version 1.1.0 released 09-Jul-2024
 - fix throw event to start with eventInvocation=0 (as specified by the standard)
-
-Version 1.0.1 released 23-Feb-2024
-- update netty version 
-- fix throwEvent to start with the event-invocation-identification=0 after successfully BIND
 
 Version 1.0.0 released 1-Feb-2023
 - updated the pom.xml to require java 11
