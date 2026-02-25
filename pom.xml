@@ -67,13 +67,9 @@
 	</dependencies>
 	<distributionManagement>
 		<snapshotRepository>
-			<id>ossrh</id>
-			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+			<id>central</id>
+			<url>https://central.sonatype.com/repository/maven-snapshots/</url>
 		</snapshotRepository>
-		<repository>
-			<id>ossrh</id>
-			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-		</repository>
 	</distributionManagement>
 
 
@@ -132,6 +128,7 @@
 					<pushChanges>false</pushChanges>
 					<localCheckout>true</localCheckout>
 					<goals>deploy</goals>
+					<arguments>-Drelease</arguments>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -156,8 +153,7 @@
 			<id>jsle-release</id>
 			<activation>
 				<property>
-					<name>performRelease</name>
-					<value>true</value>
+					<name>release</name>
 				</property>
 			</activation>
 			<build>
@@ -165,7 +161,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
-						<version>1.6</version>
+						<version>3.0.1</version>
 						<executions>
 							<execution>
 								<id>sign-artifacts</id>
@@ -180,21 +176,19 @@
 						</configuration>
 					</plugin>
 					<plugin>
-						<groupId>org.sonatype.plugins</groupId>
-						<artifactId>nexus-staging-maven-plugin</artifactId>
-						<version>1.6.13</version>
+						<groupId>org.sonatype.central</groupId>
+						<artifactId>central-publishing-maven-plugin</artifactId>
+						<version>0.7.0</version>
 						<extensions>true</extensions>
 						<configuration>
-							<serverId>ossrh</serverId>
-							<nexusUrl>https://oss.sonatype.org/</nexusUrl>
-							<autoReleaseAfterClose>false</autoReleaseAfterClose>
+							<publishingServerId>central</publishingServerId>
+							<autoPublish>false</autoPublish>
 						</configuration>
 					</plugin>
-
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-source-plugin</artifactId>
-						<version>2.2.1</version>
+						<version>3.3.0</version>
 						<executions>
 							<execution>
 								<id>attach-sources</id>
@@ -207,6 +201,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>3.6.3</version>
 						<executions>
 							<execution>
 								<id>attach-javadocs</id>
@@ -219,19 +214,19 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-assembly-plugin</artifactId>
-						<version>3.1.0</version>
+						<version>3.6.0</version>
 						<configuration>
 							<attach>false</attach>
 							<descriptors>
 								<descriptor>distribution/jsle.descriptor.xml</descriptor>
 							</descriptors>
 							<appendAssemblyId>false</appendAssemblyId>
-                                                        <tarLongFileMode>posix</tarLongFileMode>
+							<tarLongFileMode>posix</tarLongFileMode>
 						</configuration>
 						<executions>
 							<execution>
-								<id>make-assembly</id> <!-- this is used for inheritance merges -->
-								<phase>package</phase> <!-- bind to the packaging phase -->
+								<id>make-assembly</id>
+								<phase>package</phase>
 								<goals>
 									<goal>single</goal>
 								</goals>
@@ -239,7 +234,6 @@
 						</executions>
 					</plugin>
 				</plugins>
-
 			</build>
 		</profile>
 
